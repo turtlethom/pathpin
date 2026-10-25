@@ -127,13 +127,13 @@ func TestReorderAndFilter(t *testing.T) {
 // Reordering keeps every other setting in the file.
 func TestReorderKeepsSettings(t *testing.T) {
 	m := selectLabel(t, groupModel(t), "CS310")
-	m.cfg.Menu.Icons = true
+	m.cfg.Menu.Icons = "nerd"
 	m, _ = press(m, keyJ)
 	cfg, err := config.Load(m.configPath)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !cfg.Menu.Icons || cfg.Colors.Theme != "nord" {
+	if cfg.Menu.Icons == "" || cfg.Colors.Theme != "nord" {
 		t.Errorf("reordering lost settings: menu %+v, colors %+v", cfg.Menu, cfg.Colors)
 	}
 }

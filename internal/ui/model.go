@@ -1160,7 +1160,8 @@ func itemsFrom(cfg *config.Config, tab string, gone map[string]bool) []list.Item
 // group, and the row shows it as a tag, in the group's first spelling. (On a
 // group's tab, every row shares the group.)
 func newItem(cfg *config.Config, b config.Bookmark, tab string, gone map[string]bool) item {
-	it := item{Bookmark: b, missing: gone[b.Path], icons: cfg.Menu.Icons, matchGroup: tab == config.TabAll}
+	icons, _ := lookupIcons(string(cfg.Menu.Icons))
+	it := item{Bookmark: b, missing: gone[b.Path], icons: icons, matchGroup: tab == config.TabAll}
 	if tab == config.TabAll {
 		it.tag = cfg.GroupOf(b) // "" if ungrouped, or in a hand-edited All/Other
 	}
@@ -1221,10 +1222,10 @@ func inTab(b config.Bookmark, tab string) bool {
 // it.Label and it.Path work as if item declared them.
 type item struct {
 	config.Bookmark
-	missing    bool   // folder didn't exist when last checked
-	icons      bool   // [menu] icons: show an icon before the label
-	matchGroup bool   // the filter also matches the group (on the All tab)
-	tag        string // the group, shown after the label (on the All tab)
+	missing    bool    // folder didn't exist when last checked
+	icons      iconSet // [menu] icons: the icons before the label (none if off)
+	matchGroup bool    // the filter also matches the group (on the All tab)
+	tag        string  // the group, shown after the label (on the All tab)
 }
 
 // Title is the label line: icon, label in uppercase, and (missing).
@@ -1255,18 +1256,17 @@ func (i item) FilterValue() string {
 // invisible control character, so it can't be typed into the filter.
 const groupSep = "\x1f"
 
-// icon is a Nerd Font icon and a space before the label, or "" with icons off.
-// A missing folder gets ✗, which most fonts have.
+// icon is the row's icon and a space before the label, or "" with icons off.
 func (i item) icon() string {
 	switch {
-	case !i.icons:
+	case i.icons.name == "":
 		return ""
 	case i.missing:
 		return "✗ "
 	case config.ContractHome(i.Path) == "~":
-		return "\uf015 " // home
+		return i.icons.home + " "
 	default:
-		return "\uf07b " // folder
+		return i.icons.folder + " "
 	}
 }
 

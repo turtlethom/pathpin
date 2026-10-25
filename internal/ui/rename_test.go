@@ -134,7 +134,7 @@ func TestRenameWithFilterApplied(t *testing.T) {
 // Renaming keeps every other setting in the file, like add and remove do.
 func TestRenameKeepsSettings(t *testing.T) {
 	m := selectLabel(t, groupModel(t), "BASH")
-	m.cfg.Menu.Icons = true
+	m.cfg.Menu.Icons = "nerd"
 	m, _ = press(m, runes("n"))
 	m, _ = press(clearField(m), runes("SHELL"))
 	m = enter(m)
@@ -142,7 +142,7 @@ func TestRenameKeepsSettings(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !cfg.Menu.Icons || cfg.Colors.Theme != "nord" {
+	if cfg.Menu.Icons == "" || cfg.Colors.Theme != "nord" {
 		t.Errorf("renaming lost settings: menu %+v, colors %+v", cfg.Menu, cfg.Colors)
 	}
 }

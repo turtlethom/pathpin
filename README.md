@@ -141,13 +141,27 @@ that isn't a color is ignored, and pathpin says which line to fix when the menu 
 
 ### Icons
 
-With a [Nerd Font](https://www.nerdfonts.com/) in your terminal, turn on icons before each label:
-a folder, a house for your home folder, and ✗ for a folder that no longer exists.
+Put an icon before each label by choosing a set, in the `t` picker or in the file:
 
 ```toml
 [menu]
-icons = true
+icons = "dot"
 ```
+
+| Set | Folder | Home | Needs |
+|---|---|---|---|
+| `dot` | `●` | `⌂` | any font |
+| `triangle` | `▸` | `⌂` | any font |
+| `diamond` | `◆` | `⌂` | any font |
+| `star` | `★` | `⌂` | any font |
+| `nerd` | folder icon | house icon | a [Nerd Font](https://www.nerdfonts.com/) |
+
+A folder that no longer exists gets `✗` in every set. `off` (the default) shows none, and the
+older `icons = true` still works as `nerd`.
+
+`●`, `◆` and `★` are "ambiguous width" characters: if your terminal draws those two columns wide
+(an option in some terminals, and common with CJK locales), the rows shift. Use `triangle` or
+`nerd` there.
 
 Coming from `fcd`? Your bookmarks are imported automatically the first time you run pathpin, and
 fcd's file is left in place.

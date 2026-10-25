@@ -74,6 +74,46 @@ func KnownHeader(h string) bool {
 	return h == "" || indexFold(headerNames(), h) >= 0
 }
 
+// iconSet is one [menu] icons choice: what goes before a folder's label, and
+// before $HOME's. A missing folder gets ✗ in every set. The zero iconSet is
+// no icons.
+type iconSet struct{ name, folder, home string }
+
+// iconSets are the sets, in the picker's order. nerd needs a Nerd Font; the
+// others are in most fonts. No emoji: they're two columns wide in most
+// terminals and would break the rows' alignment.
+func iconSets() []iconSet {
+	return []iconSet{
+		{"nerd", "\uf07b", "\uf015"},
+		{"dot", "●", "⌂"},
+		{"triangle", "▸", "⌂"},
+		{"diamond", "◆", "⌂"},
+		{"star", "★", "⌂"},
+	}
+}
+
+// iconsOff is the [menu] icons value for no icons (as is "", the default).
+const iconsOff = "off"
+
+// lookupIcons finds the set named name, in any case. "", "off" and unknown
+// names give no icons; ok reports whether the name was a set.
+func lookupIcons(name string) (iconSet, bool) {
+	for _, s := range iconSets() {
+		if strings.EqualFold(s.name, name) {
+			return s, true
+		}
+	}
+	return iconSet{}, false
+}
+
+// KnownIcons reports whether s is a [menu] icons the menu knows: a set's
+// name, or "" or "off" for none. Anything else gives no icons, and cmd warns
+// about it.
+func KnownIcons(s string) bool {
+	_, ok := lookupIcons(s)
+	return ok || s == "" || strings.EqualFold(s, iconsOff)
+}
+
 // NewStyles builds the menu's styles from the user's theme (default:
 // terminal, which follows the terminal's own palette), then applies any colors
 // set in [colors] on top, one at a time:

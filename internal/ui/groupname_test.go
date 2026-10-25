@@ -256,7 +256,7 @@ func TestUngroupWithFilterApplied(t *testing.T) {
 // Renaming a group keeps every other setting in the file.
 func TestRenameGroupKeepsSettings(t *testing.T) {
 	m := schoolTab(t)
-	m.cfg.Menu.Icons = true
+	m.cfg.Menu.Icons = "nerd"
 	m = pressN(m)
 	m, _ = press(clearField(m), runes("Classes"))
 	m = enter(m)
@@ -264,7 +264,7 @@ func TestRenameGroupKeepsSettings(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !cfg.Menu.Icons || cfg.Colors.Theme != "nord" {
+	if cfg.Menu.Icons == "" || cfg.Colors.Theme != "nord" {
 		t.Errorf("renaming a group lost settings: menu %+v, colors %+v", cfg.Menu, cfg.Colors)
 	}
 }

@@ -18,15 +18,15 @@ const (
 	missingIcon = "✗"
 )
 
-// iconModel builds a menu with [menu] icons = true.
+// iconModel builds a menu with [menu] icons = "nerd".
 func iconModel(t *testing.T, bookmarks ...config.Bookmark) Model {
 	t.Helper()
 	m := newTestModel(t, bookmarks...) // creates the folders and the config file
-	cfg := &config.Config{Menu: config.Menu{Icons: true}, Bookmarks: m.cfg.Bookmarks}
+	cfg := &config.Config{Menu: config.Menu{Icons: "nerd"}, Bookmarks: m.cfg.Bookmarks}
 	return started(New(cfg, m.configPath)).sized(80, 24)
 }
 
-// Icons are off unless turned on, since they need a Nerd Font.
+// Icons are off unless a set is chosen.
 func TestIconsOffByDefault(t *testing.T) {
 	m := newTestModel(t,
 		config.Bookmark{Label: "NOTES", Path: "notes"},
@@ -144,7 +144,7 @@ func TestMenuChangesKeepSettings(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !cfg.Menu.Icons || cfg.Colors.Theme != "nord" {
+		if cfg.Menu.Icons == "" || cfg.Colors.Theme != "nord" {
 			t.Errorf("after %s, the file lost settings: menu %+v, colors %+v", after, cfg.Menu, cfg.Colors)
 		}
 	}
@@ -156,4 +156,66 @@ func TestMenuChangesKeepSettings(t *testing.T) {
 	m, _ = press(m, runes("r"))
 	m, _ = press(m, runes("y"))
 	settingsOnDisk("removing")
+}
+
+// iconBookmarks are a folder, $HOME and a folder that's gone.
+func iconBookmarks() []config.Bookmark {
+	return []config.Bookmark{
+		{Label: "NOTES", Path: "notes"},
+		{Label: "HOME", Path: ""},
+		{Label: "GONE", Path: "!old"},
+	}
+}
+
+// [menu] icons names a set: nerd (a Nerd Font's folder and house), or one of
+// four that work in any font, each with ⌂ for $HOME. A missing folder gets
+// ✗ in every set. Names match in any case.
+func TestIconSets(t *testing.T) {
+	for set, want := range map[string][2]string{ // folder, home
+		"nerd":     {folderIcon, homeIcon},
+		"dot":      {"●", "⌂"},
+		"triangle": {"▸", "⌂"},
+		"diamond":  {"◆", "⌂"},
+		"Star":     {"★", "⌂"},
+	} {
+		m := restartedWith(t, newTestModel(t, iconBookmarks()...), `icons = "`+set+`"`)
+		view := plain(m.View())
+		for _, s := range []string{want[0] + " NOTES", want[1] + " HOME", missingIcon + " GONE (missing)"} {
+			if !strings.Contains(view, s) {
+				t.Errorf("%s: want %q in the view:\n%s", set, s, view)
+			}
+		}
+	}
+	m := restartedWith(t, newTestModel(t, iconBookmarks()...), `icons = "off"`)
+	for _, icon := range []string{folderIcon, homeIcon, missingIcon, "⌂"} {
+		if strings.Contains(m.View(), icon) {
+			t.Errorf("off: want no icons, got %q:\n%s", icon, plain(m.View()))
+		}
+	}
+}
+
+// Configs from before the sets still load: icons = true is nerd, false is
+// off. An unknown set gives no icons (cmd warns about it).
+func TestIconsOldAndUnknown(t *testing.T) {
+	for value, want := range map[string]bool{"true": true, "false": false, `"emoji"`: false} {
+		m := restartedWith(t, newTestModel(t, iconBookmarks()...), "icons = "+value)
+		if got := strings.Contains(m.View(), folderIcon+" NOTES"); got != want {
+			t.Errorf("icons = %s: Nerd Font icons %v, want %v:\n%s", value, got, want, plain(m.View()))
+		}
+	}
+}
+
+// The filter's underlines stay on the matched letters with a set whose icon
+// is more than one byte (every set's is).
+func TestIconSetsKeepFilterMatchesAligned(t *testing.T) {
+	m := restartedWith(t, newTestModel(t, config.Bookmark{Label: "NOTES", Path: "notes"}, config.Bookmark{Label: "NVIM", Path: "nvim"}), `icons = "diamond"`)
+	m.list.SetFilterText("vim")
+	title := []rune(m.list.VisibleItems()[0].(item).Title())
+	var got []rune
+	for _, i := range m.list.MatchesForItem(0) {
+		got = append(got, title[i])
+	}
+	if string(got) != "VIM" {
+		t.Errorf("filter \"vim\" underlines %q in %q", string(got), string(title))
+	}
 }

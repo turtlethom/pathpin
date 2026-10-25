@@ -251,7 +251,7 @@ group = "Config"
 theme = "nord"
 
 [menu]
-icons = true
+icons = "dot"
 selection = "bar"
 header = "text"
 ```

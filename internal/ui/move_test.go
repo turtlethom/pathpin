@@ -434,13 +434,13 @@ func TestMoveOffGroupTab(t *testing.T) {
 // Moving keeps every other setting in the file, like add and remove do.
 func TestMoveKeepsSettings(t *testing.T) {
 	m := selectLabel(t, groupModel(t), "PATHPIN")
-	m.cfg.Menu.Icons = true
+	m.cfg.Menu.Icons = "nerd"
 	m = moveTo(t, m, "School")
 	cfg, err := config.Load(m.configPath)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !cfg.Menu.Icons || cfg.Colors.Theme != "nord" {
+	if cfg.Menu.Icons == "" || cfg.Colors.Theme != "nord" {
 		t.Errorf("moving lost settings: menu %+v, colors %+v", cfg.Menu, cfg.Colors)
 	}
 }

@@ -110,7 +110,7 @@ func loadConfig(cmd *cobra.Command) (*config.Config, string, error) {
 }
 
 // warnAboutStyle prints one line for an unknown theme, for each [colors]
-// value that isn't a color, and for an unknown [menu] selection, header or tabs. The menu
+// value that isn't a color, and for an unknown [menu] selection, icons, header or tabs. The menu
 // falls back for all of them, and only the menu uses them, so this runs just
 // before it opens. Like the migration line, it shows once the menu's screen
 // closes.
@@ -129,6 +129,9 @@ func warnAboutStyle(cmd *cobra.Command, cfg *config.Config) {
 	}
 	if !ui.KnownSelection(cfg.Menu.Selection) {
 		fmt.Fprintf(errOut, "%s: [menu] selection = %q is not block, bar or arrow, using block\n", me, cfg.Menu.Selection)
+	}
+	if !ui.KnownIcons(string(cfg.Menu.Icons)) {
+		fmt.Fprintf(errOut, "%s: [menu] icons = %q is not off, nerd, dot, triangle, diamond or star, using off\n", me, cfg.Menu.Icons)
 	}
 	if !ui.KnownHeader(cfg.Menu.Header) {
 		fmt.Fprintf(errOut, "%s: [menu] header = %q is not badge, text, bracket or rule, using badge\n", me, cfg.Menu.Header)

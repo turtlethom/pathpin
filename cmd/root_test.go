@@ -484,6 +484,32 @@ func TestUnknownSelectionWarns(t *testing.T) {
 	}
 }
 
+// An unknown [menu] icons set gets one warning line when the menu opens, and
+// the menu opens without icons. Known sets and the old true/false never warn.
+func TestUnknownIconsWarns(t *testing.T) {
+	e := newRootEnv(t)
+	e.withColors(t, "[menu]\nicons = \"emoji\"\n")
+	opened := false
+	_, stderr, err := e.run(t, func(*config.Config, string) (string, error) {
+		opened = true
+		return "", nil
+	})
+	if err != nil || !opened {
+		t.Fatalf("an unknown icons set should not stop the menu (err %v, opened %v)", err, opened)
+	}
+	want := `[menu] icons = "emoji" is not off, nerd, dot, triangle, diamond or star, using off`
+	if !strings.Contains(stderr, want) || strings.Count(stderr, "\n") != 1 {
+		t.Errorf("want one line %q, got %q", want, stderr)
+	}
+	for _, ok := range []string{`"nerd"`, `"Dot"`, `"off"`, "true", "false"} {
+		e.withColors(t, "[menu]\nicons = "+ok+"\n")
+		_, stderr, err := e.run(t, func(*config.Config, string) (string, error) { return "", nil })
+		if err != nil || stderr != "" {
+			t.Errorf("icons = %s should not warn, got err %v, stderr %q", ok, err, stderr)
+		}
+	}
+}
+
 // An unknown [menu] header gets one warning line when the menu opens, like an
 // unknown selection, and the menu still opens (with the badge). Known values,
 // in any case, never warn.

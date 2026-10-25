@@ -335,7 +335,7 @@ func TestColorRowCycles(t *testing.T) {
 // menu keeps the new colors.
 func TestThemePickerSaves(t *testing.T) {
 	m := colorsModel(t, config.Colors{})
-	m.cfg.Menu.Icons = true
+	m.cfg.Menu.Icons = "nerd"
 	m = openPicker(t, m)
 	m = right(m) // the first preset
 	m = right(toRow(t, m, "primary"))
@@ -348,7 +348,7 @@ func TestThemePickerSaves(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.Colors != want || !cfg.Menu.Icons || len(cfg.Bookmarks) != 2 {
+	if cfg.Colors != want || cfg.Menu.Icons == "" || len(cfg.Bookmarks) != 2 {
 		t.Errorf("want colors %+v saved with icons and 2 bookmarks, got %+v, %+v, %d", want, cfg.Colors, cfg.Menu, len(cfg.Bookmarks))
 	}
 	if m.cfg.Colors != want || colorsOf(m.styles) != colorsOf(NewStyles(want, config.Menu{})) {
@@ -548,20 +548,27 @@ func TestPickerSelectionRow(t *testing.T) {
 	}
 }
 
-// The icons row shows off (the default) or on, with a hint. ←→ toggle, the
-// rows above show the icons right away, and d turns them off.
+// The icons row shows off (the default) or a set, with a hint. ←→ cycle
+// off → nerd → dot → triangle → diamond → star (wrapping), the rows above show
+// the icons right away, and d turns them off.
 func TestPickerIconsRow(t *testing.T) {
 	m := openPicker(t, colorsModel(t, config.Colors{}))
-	if line := pickerLine(t, m, "icons"); !strings.Contains(line, "off") || !strings.Contains(line, "needs a Nerd Font") {
+	if line := pickerLine(t, m, "icons"); !strings.Contains(line, "off") || !strings.Contains(line, "nerd needs a Nerd Font") {
 		t.Errorf("want off and the hint: %q", line)
 	}
-	m = right(toRow(t, m, "icons"))
-	if line := pickerLine(t, m, "icons"); !strings.Contains(line, "on") || !strings.Contains(m.View(), folderIcon+" NVIM") {
-		t.Errorf("→ should show and preview icons: %q\n%s", line, m.View())
+	m = toRow(t, m, "icons")
+	for _, step := range [][2]string{{"nerd", folderIcon}, {"dot", "●"}, {"triangle", "▸"}, {"diamond", "◆"}, {"star", "★"}} {
+		m = right(m)
+		if line := pickerLine(t, m, "icons"); !strings.Contains(line, step[0]) || !strings.Contains(m.View(), step[1]+" NVIM") {
+			t.Errorf("→ should show and preview %s: %q\n%s", step[0], line, plain(m.View()))
+		}
 	}
 	m = right(m)
-	if line := pickerLine(t, m, "icons"); !strings.Contains(line, "off") || strings.Contains(m.View(), folderIcon) {
-		t.Errorf("→ from on should wrap to off: %q\n%s", line, m.View())
+	if line := pickerLine(t, m, "icons"); !strings.Contains(line, "off") || strings.Contains(m.View(), "★") {
+		t.Errorf("→ from star should wrap to off: %q\n%s", line, plain(m.View()))
+	}
+	if line := pickerLine(t, left(m), "icons"); !strings.Contains(line, "star") {
+		t.Errorf("← from off should wrap to star: %q", line)
 	}
 	m, _ = press(right(m), runes("d"))
 	if line := pickerLine(t, m, "icons"); !strings.Contains(line, "off") || strings.Contains(m.View(), folderIcon) {
@@ -612,7 +619,7 @@ func TestPickerSavesMenuOptions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := (config.Menu{Icons: true, Selection: "bar"}); cfg.Menu != want || m.cfg.Menu != want {
+	if want := (config.Menu{Icons: "nerd", Selection: "bar"}); cfg.Menu != want || m.cfg.Menu != want {
 		t.Errorf("want %+v saved and kept, got file %+v, menu %+v", want, cfg.Menu, m.cfg.Menu)
 	}
 	if cfg.Colors.Theme != "nord" || len(cfg.Bookmarks) != 2 {

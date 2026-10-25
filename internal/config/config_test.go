@@ -205,7 +205,7 @@ func TestSaveLoadRoundTrip(t *testing.T) {
 			{Label: "TMP", Path: outside},
 		},
 		Colors: Colors{Theme: "nord", Primary: "#56B6C2", SelectedText: "#2E3440", Error: "#BF616A"},
-		Menu:   Menu{Icons: true, Selection: "bar"},
+		Menu:   Menu{Icons: "nerd", Selection: "bar"},
 	}
 	snapshot := *want
 	snapshot.Bookmarks = append([]Bookmark(nil), want.Bookmarks...)
@@ -224,7 +224,7 @@ func TestSaveLoadRoundTrip(t *testing.T) {
 	if !strings.Contains(disk, outside) {
 		t.Errorf("paths outside $HOME should be written as-is; file:\n%s", disk)
 	}
-	for _, key := range []string{`theme = "nord"`, `selected_text = "#2E3440"`, `error = "#BF616A"`, "[menu]\nicons = true", `selection = "bar"`} {
+	for _, key := range []string{`theme = "nord"`, `selected_text = "#2E3440"`, `error = "#BF616A"`, "[menu]\nicons = \"nerd\"", `selection = "bar"`} {
 		if !strings.Contains(disk, key) {
 			t.Errorf("want %s in [colors]; file:\n%s", key, disk)
 		}
@@ -257,6 +257,42 @@ func TestMenuTabs(t *testing.T) {
 		if disk := readFile(t, path); !strings.Contains(disk, `tabs = "`+value+`"`) {
 			t.Errorf("tabs = %q should be saved as written; file:\n%s", value, disk)
 		}
+	}
+}
+
+// [menu] icons names an icon set. Configs from before the sets said true or
+// false: true loads as nerd and false as off (not saved), so the next save
+// writes the set's name. Any other name loads and saves as written (the menu
+// treats one it doesn't know as off), and a value of another type is an
+// error, leaving the file alone.
+func TestMenuIcons(t *testing.T) {
+	home := setupHome(t)
+	path := filepath.Join(home, ".config", "pathpin", "config.toml")
+	for value, want := range map[string]string{
+		`"dot"`:   `icons = "dot"`,
+		`"emoji"`: `icons = "emoji"`,
+		"true":    `icons = "nerd"`,
+		"false":   "",
+	} {
+		writeFile(t, path, "[menu]\nicons = "+value+"\n")
+		cfg, err := Load(path)
+		if err != nil {
+			t.Fatalf("icons = %s should load: %v", value, err)
+		}
+		if err := Save(path, cfg); err != nil {
+			t.Fatal(err)
+		}
+		disk := readFile(t, path)
+		if want == "" && strings.Contains(disk, "icons") || want != "" && !strings.Contains(disk, want) {
+			t.Errorf("icons = %s: want %q saved; file:\n%s", value, want, disk)
+		}
+	}
+	writeFile(t, path, "[menu]\nicons = 3\n")
+	if _, err := Load(path); err == nil {
+		t.Error("icons = 3 should be an error")
+	}
+	if disk := readFile(t, path); disk != "[menu]\nicons = 3\n" {
+		t.Errorf("a refused file must be left alone, got:\n%s", disk)
 	}
 }
 

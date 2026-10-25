@@ -62,10 +62,35 @@ type Colors struct {
 
 // Menu holds the menu's display options. Unset, each keeps the default look.
 type Menu struct {
-	Icons     bool   `toml:"icons,omitempty"`     // Nerd Font icons before labels
-	Selection string `toml:"selection,omitempty"` // the selected row: "block" (default), "bar" or "arrow"
-	Header    string `toml:"header,omitempty"`    // the title and open tab: "badge" (default), "text", "bracket" or "rule"
-	Tabs      string `toml:"tabs,omitempty"`      // how the menu starts: "all" (default), or "groups" with All and Other hidden
+	Icons     IconSet `toml:"icons,omitempty"`     // an icon set's name; "" (default) for none
+	Selection string  `toml:"selection,omitempty"` // the selected row: "block" (default), "bar" or "arrow"
+	Header    string  `toml:"header,omitempty"`    // the title and open tab: "badge" (default), "text", "bracket" or "rule"
+	Tabs      string  `toml:"tabs,omitempty"`      // how the menu starts: "all" (default), or "groups" with All and Other hidden
+}
+
+// IconSet is [menu] icons: an icon set's name, "" for none. config only
+// stores it; the menu knows the sets. Configs from before the sets said true
+// or false, so those still load: true as "nerd" (the Nerd Font icons it
+// meant), false as none. The next save writes the name.
+type IconSet string
+
+// UnmarshalTOML decodes an IconSet. BurntSushi/toml calls it for every
+// IconSet field, because IconSet has this method: Go interfaces are met
+// implicitly, so implementing toml.Unmarshaler is just having it. Any other
+// type is an error, so Load refuses the file and leaves it alone.
+func (s *IconSet) UnmarshalTOML(v any) error {
+	switch v := v.(type) {
+	case bool:
+		*s = ""
+		if v {
+			*s = "nerd"
+		}
+	case string:
+		*s = IconSet(v)
+	default:
+		return errors.New(`[menu] icons should be an icon set's name like "dot" (or true/false)`)
+	}
+	return nil
 }
 
 // Config is the whole configuration file.

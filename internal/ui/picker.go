@@ -60,15 +60,16 @@ func appearanceRows() []pickerRow {
 			set:    func(c *config.Config, v string) { c.Menu.Selection = v },
 		},
 		{
-			key: "icons", hint: "needs a Nerd Font", def: "off", rebuild: true,
-			values: func() []string { return []string{"", "on"} },
-			get: func(c *config.Config) string {
-				if c.Menu.Icons {
-					return "on"
+			key: "icons", hint: "nerd needs a Nerd Font", def: iconsOff, rebuild: true,
+			values: func() []string {
+				values := []string{""}
+				for _, s := range iconSets() {
+					values = append(values, s.name)
 				}
-				return ""
+				return values
 			},
-			set: func(c *config.Config, v string) { c.Menu.Icons = v == "on" },
+			get: func(c *config.Config) string { return string(c.Menu.Icons) },
+			set: func(c *config.Config, v string) { c.Menu.Icons = config.IconSet(v) },
 		},
 		{
 			key: "header", hint: "title and open tab", def: headerBadge,
