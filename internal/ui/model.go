@@ -33,6 +33,7 @@ const (
 	modeGroupName             // typing a new name for the open group's tab (N)
 	modeTheme                 // the theme picker (t) is open
 	modeHex                   // typing a color for the picker's highlighted row (#)
+	modeHelp                  // the help page (?) fills the screen
 )
 
 // confirmAction is what a y/N prompt will do if confirmed.
@@ -121,9 +122,11 @@ func New(cfg *config.Config, configPath string) Model {
 	l.Filter = filterByRune
 	l.SetStatusBarItemName("bookmark", "bookmarks")
 	l.StatusMessageLifetime = 3 * time.Second
-	// pathpin draws the help itself (helpView): bubbles' can't cut its line to
-	// a narrow window. The list still toggles it with ? and says which keys apply.
+	// pathpin draws the help itself: the short line (helpView), since bubbles'
+	// can't cut its line to a narrow window, and the ? page (helpPage). The
+	// list still says which keys apply for the short line.
 	l.SetShowHelp(false)
+	l.KeyMap.ShowFullHelp.SetHelp("?", "help")
 	setHelpKeys(&l, tabs(cfg) != nil)
 
 	group := newField("Group: ")
@@ -152,7 +155,6 @@ func (m *Model) restyle(cfg *config.Config) {
 
 	d := delegate{DefaultDelegate: list.NewDefaultDelegate(), missing: s.missing, pathEnd: s.pathEnd, tag: s.muted}
 	d.Styles = s.item
-	d.FullHelpFunc = func() [][]key.Binding { return [][]key.Binding{editKeys()} }
 	m.list.SetDelegate(d)
 	m.list.Styles.Title = s.title
 	m.list.Styles.StatusBar = s.status
@@ -166,10 +168,6 @@ func (m *Model) restyle(cfg *config.Config) {
 	// The paginator keeps its own copy of the dots, made when the list was.
 	m.list.Paginator.ActiveDot = s.key.Render("•")
 	m.list.Paginator.InactiveDot = s.muted.Render("•")
-	// The full help (?) is still bubbles' columns.
-	hs := &m.list.Help.Styles
-	hs.FullKey, hs.FullDesc, hs.FullSeparator, hs.Ellipsis = s.key, s.muted, s.muted, s.muted
-	hs.ShortKey, hs.ShortDesc, hs.ShortSeparator = s.key, s.muted, s.muted
 
 	for _, f := range []*textinput.Model{&m.input, &m.group, &m.hex} {
 		f.PromptStyle = s.filter
@@ -187,42 +185,25 @@ func newField(prompt string) textinput.Model {
 	return in
 }
 
-// bind is a key for the help: its key and what it does.
+// bind is a key for the short help line: its key and what it does.
 func bind(k, desc string) key.Binding {
 	return key.NewBinding(key.WithKeys(k), key.WithHelp(k, desc))
 }
 
-// editKeys are the keys that act on bookmarks. In ? help they're a column of
-// their own, through the delegate (see restyle), so the full help stays short
-// enough for an 80x24 terminal.
-func editKeys() []key.Binding {
-	return []key.Binding{bind("a", "add"), bind("r", "remove"), bind("c", "clear"),
-		bind("m", "group"), bind("u", "ungroup"), bind("n", "rename"), bind("e", "edit")}
-}
-
-// setHelpKeys adds pathpin's other keys to the list's help. The short help line
-// shows only a and r (and tab while there are tabs), so it fits an 80-column
-// terminal with q quit and ? more still showing; ? lists every key, the rest
-// under the filter keys, with the group keys last since they come and go.
+// setHelpKeys adds pathpin's keys to the short help line, after the list's
+// own: a and r, then tab while there are tabs, or m before there are any
+// (so the group key shows to whoever hasn't found it). That fits an
+// 80-column terminal with q quit and ? help still showing; the ? page lists
+// every key (helpSections).
 func setHelpKeys(l *list.Model, withTabs bool) {
-	// The same keys, labeled for each help: the short line has no room for
-	// shift+tab, ? does. Only the help reads these; updateBrowse handles tab.
+	// Only the help line reads these; updateBrowse handles the keys.
 	tab := key.NewBinding(key.WithKeys("tab", "shift+tab"), key.WithHelp("tab", "group"))
-	tabAll := key.NewBinding(key.WithKeys("tab", "shift+tab"), key.WithHelp("tab/⇧tab", "group"))
 	l.AdditionalShortHelpKeys = func() []key.Binding {
 		k := []key.Binding{bind("a", "add"), bind("r", "remove")}
 		if withTabs {
-			k = append(k, tab)
+			return append(k, tab)
 		}
-		return k
-	}
-	l.AdditionalFullHelpKeys = func() []key.Binding {
-		k := []key.Binding{key.NewBinding(key.WithKeys("J", "K", "shift+down", "shift+up"), key.WithHelp("J/K", "reorder")),
-			bind("t", "appearance"), bind("y", "copy path"), bind("o", "open")}
-		if withTabs {
-			k = append(k, bind("N", "rename group"), tabAll)
-		}
-		return k
+		return append(k, bind("m", "group"))
 	}
 }
 
@@ -322,7 +303,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.String() == "ctrl+c" {
 			return m, tea.Quit
 		}
-		m.message, m.messageErr = "", false
+		// A key clears the bottom line's message, except on the help page,
+		// which doesn't show it: a result that arrived meanwhile (y, o)
+		// shows once the page closes.
+		if m.mode != modeHelp {
+			m.message, m.messageErr = "", false
+		}
 	}
 
 	switch m.mode {
@@ -344,12 +330,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.updateTheme(msg)
 	case modeHex:
 		return m.updateField(msg, hexField, Model.setHex)
+	case modeHelp:
+		return m.updateHelp(msg)
 	}
 	return m, nil
 }
 
 // updateBrowse handles the main menu (modeBrowse). pathpin's own keys start
-// an action or another mode; everything else (arrows, /, ?, g, paging) goes
+// an action or another mode; everything else (arrows, /, g, paging) goes
 // to the list.
 func (m Model) updateBrowse(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// While typing a filter, every key belongs to the filter (v1 bug: q quit
@@ -360,6 +348,11 @@ func (m Model) updateBrowse(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.choose()
 		case "q":
 			return m, tea.Quit
+		case "?":
+			// The page replaces the whole screen (see View); the list keeps its
+			// size, cursor and filter for when it closes.
+			m.mode = modeHelp
+			return m, nil
 		case "esc":
 			// With a filter applied, esc clears it instead (handled by the list).
 			if m.list.FilterState() == list.Unfiltered {
@@ -421,13 +414,7 @@ func (m Model) updateBrowse(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// the message and keeping the list it returns is how a component inside
 	// the Model gets its keys (and its commands come back to Bubble Tea).
 	var cmd tea.Cmd
-	helpHeight := lipgloss.Height(m.helpView())
 	m.list, cmd = m.list.Update(msg)
-	// ? opens or closes the full help, and filtering changes its keys. The
-	// list doesn't count the help (pathpin draws it), so make room here.
-	if lipgloss.Height(m.helpView()) != helpHeight {
-		m.resize()
-	}
 	return m, cmd
 }
 
@@ -460,9 +447,8 @@ func (m *Model) resize() {
 	m.list.SetSize(m.width-h, m.height-v-reserved)
 }
 
-// showTab opens a tab: it clears any filter and shows that tab's bookmarks.
-// Clearing the filter can shorten the full help (no esc clear filter), so it
-// resizes too.
+// showTab opens a tab: it clears any filter and shows that tab's bookmarks,
+// with the list sized for the window.
 func (m *Model) showTab(name string) tea.Cmd {
 	m.tab = name
 	m.list.ResetFilter()
@@ -950,9 +936,13 @@ func (m *Model) refuseGone(path string) tea.Cmd {
 
 // View draws the whole screen from the Model, top to bottom: the list (title,
 // tab bar, rows, status and page dots), the help, the picker when it's open,
-// then the bottom line. It only reads the Model; Bubble Tea calls it after
-// every Update and puts the string on screen.
+// then the bottom line; or, with ?, the help page instead of all of it. It
+// only reads the Model; Bubble Tea calls it after every Update and puts the
+// string on screen.
 func (m Model) View() string {
+	if m.mode == modeHelp {
+		return m.styles.app.Render(m.helpPage()) // the page replaces everything
+	}
 	body := m.list.View()
 	// The tab bar and its rule go under the list's title line (the filter
 	// field while typing), after a blank line; the list's title padding gives

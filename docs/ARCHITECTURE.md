@@ -113,6 +113,7 @@ the mode:
 | `modeGroupName` | `N` | `updateField` → `renameGroup` | browse, or confirm for a merge/ungroup |
 | `modeTheme` | `t` | `updateTheme` | browse (`enter` saves, `esc` cancels), or hex |
 | `modeHex` | `#` in the picker | `updateField` → `setHex` | back to the picker |
+| `modeHelp` | `?` | `updateHelp` | browse (`?`, `esc`, `q`; other keys do nothing) |
 
 The text-field modes share `updateField`, which is handed the field to edit
 (`labelField`, `groupField`, `hexField`) and what `enter` does.
@@ -175,7 +176,7 @@ every save replaces the one `.bak` backup.
    ~/notes
  3 bookmarks                   ← status bar (the list's)
                                ← blank line
- ↑/k up • ↓/j down • / filter  ← helpView() (hidden while picking)
+ ↑/k up • ↓/j down • / filter  ← helpView(): the short line (hidden while picking)
  theme      ◂ nord ▸           ← panel(): pickerView() with t, groupPickerView() with m
  Remove NVIM? y/N              ← bottomLine(): prompt, field, or message
 ```
@@ -185,6 +186,11 @@ and bottom line, so the whole menu always fits the window. The group picker
 has a row per group, so when they don't fit it scrolls (`groupWindow`),
 leaving the list at its shortest (`minListHeight`) with the highlighted
 bookmark in view.
+
+With `?`, `View` draws `helpPage()` instead of all of the above (`help.go`):
+the badge, every key in titled blocks laid out as a grid (`helpSections()` is
+the one list of them), and `? esc q close`. The list isn't drawn but keeps its
+cursor, filter and size, so closing the page puts the menu back as it was.
 
 ### Rows: item, delegate, filter
 
@@ -290,9 +296,11 @@ selection = "bar"
 ## Recipes
 
 - **A new menu key:** add a `case` in `updateBrowse` that calls a new method
-  (`startX` for a key that opens a field or prompt), add it to the help
-  (`editKeys` or `setHelpKeys`), and check that `?` still fits 80×24
-  (`hints_test.go`). If it changes the config, follow edit, save, swap.
+  (`startX` for a key that opens a field or prompt), add its row to the
+  block it belongs to in `helpSections()` (and update `helpBlocks` in
+  `help_test.go`), and check that the page still fits 80×24. The short line
+  (`setHelpKeys`) only has room for the most-used keys. If it changes the
+  config, follow edit, save, swap.
 - **A new config setting:** add the field with a `toml:"...,omitempty"` tag.
   Load refuses unknown keys, so older binaries will reject a config that uses
   it. If the picker should show it, add a row in `appearanceRows`.

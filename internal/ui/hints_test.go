@@ -50,49 +50,6 @@ func TestHelpLineFits(t *testing.T) {
 	}
 }
 
-// With ? the full help shows, fitting the window's width and height (the list
-// shrinks for it), and ? again brings back the one line. At 80 columns every
-// key shows; narrower, the columns are cut at the window's edge.
-func TestFullHelpFits(t *testing.T) {
-	for _, w := range []int{80, 40} {
-		m := groupModel(t).sized(w, 24)
-		m, _ = press(m, runes("?"))
-		if !helpShows(m, "a", "add") || (w == 80 && (!helpShows(m, "J/K", "reorder") || !helpShows(m, "?", "close help"))) {
-			t.Errorf("%d columns: ? should show the full help:\n%s", w, plain(m.View()))
-		}
-		lines := strings.Split(m.View(), "\n")
-		if len(lines) > 24 {
-			t.Errorf("%d columns: %d lines with ?, want at most 24:\n%s", w, len(lines), plain(m.View()))
-		}
-		for _, l := range lines {
-			if got := lipgloss.Width(l); got > w {
-				t.Errorf("%d columns: a full-help line is %d wide: %q", w, got, plain(l))
-			}
-		}
-		m, _ = press(m, runes("?"))
-		if len(strings.Split(m.View(), "\n")) > 24 || !strings.Contains(helpLine(t, m), "↓/j down") {
-			t.Errorf("%d columns: ? again should bring back the help line:\n%s", w, plain(m.View()))
-		}
-	}
-}
-
-// The full help is one row taller while a filter is applied (esc clear
-// filter). Switching tabs clears the filter, so the list grows back: the menu
-// still fills the window exactly, with no spare line.
-func TestFullHelpAfterTabSwitch(t *testing.T) {
-	m := groupModel(t).sized(80, 24)
-	for _, k := range []tea.KeyMsg{runes("/"), runes("cs"), {Type: tea.KeyEnter}, runes("?")} {
-		m, _ = press(m, k)
-	}
-	if lines := strings.Split(m.View(), "\n"); len(lines) != 24 {
-		t.Fatalf("filter applied with ?: %d lines, want 24", len(lines))
-	}
-	m = pressTab(m)
-	if lines := strings.Split(m.View(), "\n"); len(lines) != 24 {
-		t.Errorf("after tab: %d lines, want 24:\n%s", len(lines), plain(m.View()))
-	}
-}
-
 // pickerKeysLine is the picker's bottom line, every key in it.
 const pickerKeysLine = "↑↓/jk row • ←→/hl change • # hex • d reset • enter save • esc cancel"
 
@@ -214,7 +171,7 @@ func TestOnlyThemeColors(t *testing.T) {
 		"typing a filter": keys(groups, runes("/"), runes("c")),
 		"no matches":      keys(groups, runes("/"), runes("zzz")),
 		"filter applied":  keys(groups, runes("/"), runes("cs"), enterKey),
-		"full help":       keys(groups, runes("?")),
+		"help page":       keys(groups, runes("?")),
 		"confirm":         keys(groups, runes("r")),
 		"rename field":    keys(groups, runes("n")),
 		"group picker":    keys(groups, runes("m")),

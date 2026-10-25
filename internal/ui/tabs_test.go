@@ -500,27 +500,27 @@ func TestClearOnGroupTab(t *testing.T) {
 }
 
 // The help line fits an 80-column terminal, with or without tabs, so its
-// last hints (q quit, ? more) aren't cut off. Every key is in the full help.
+// last hints (q quit, ? help) aren't cut off. Every key is on the help page.
 func TestHelpFitsWidth(t *testing.T) {
 	for name, m := range map[string]Model{"no groups": twoBookmarks(t), "groups": groupModel(t)} {
 		line := strings.TrimRight(plain(rawLine(t, m.View(), "quit")), " ")
 		if w := lipgloss.Width(line); w > 80 {
 			t.Errorf("%s: help line is %d columns, want at most 80: %q", name, w, line)
 		}
-		if !strings.Contains(line, "? more") {
-			t.Errorf("%s: want ? more on the help line: %q", name, line)
+		if !strings.Contains(line, "? help") {
+			t.Errorf("%s: want ? help on the help line: %q", name, line)
 		}
 	}
 	help, _ := press(groupModel(t), runes("?"))
-	for _, k := range [][2]string{{"a", "add"}, {"r", "remove"}, {"c", "clear"}, {"m", "group"}, {"u", "ungroup"}, {"n", "rename"}, {"tab/⇧tab", "group"}} {
+	for _, k := range [][2]string{{"a", "add"}, {"r", "remove"}, {"c", "clear"}, {"m", "move to group"}, {"u", "ungroup"}, {"n", "rename"}, {"tab/⇧tab", "group"}} {
 		if !helpShows(help, k[0], k[1]) {
-			t.Errorf("the full help should list %s %s:\n%s", k[0], k[1], plain(help.View()))
+			t.Errorf("the help page should list %s %s:\n%s", k[0], k[1], plain(help.View()))
 		}
 	}
 }
 
 // helpShows reports whether the view lists key with its description. The
-// full help lines them up in columns, so any spacing counts.
+// help page lines its blocks up in columns, so any spacing counts.
 func helpShows(m Model, key, desc string) bool {
 	return regexp.MustCompile(`(^|\s)` + regexp.QuoteMeta(key) + `\s+` + regexp.QuoteMeta(desc)).MatchString(plain(m.View()))
 }

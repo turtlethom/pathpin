@@ -136,12 +136,12 @@ func TestActionKeysOnEmptyMenu(t *testing.T) {
 	}
 }
 
-// The full help lists e, y and o.
+// The help page lists e, y and o.
 func TestActionKeysInHelp(t *testing.T) {
 	m, _ := press(twoBookmarks(t), runes("?"))
 	for _, k := range [][2]string{{"e", "edit"}, {"y", "copy path"}, {"o", "open"}} {
 		if !helpShows(m, k[0], k[1]) {
-			t.Errorf("the full help should list %s %s:\n%s", k[0], k[1], plain(m.View()))
+			t.Errorf("the help page should list %s %s:\n%s", k[0], k[1], plain(m.View()))
 		}
 	}
 }

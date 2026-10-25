@@ -34,11 +34,11 @@ var (
 )
 
 // On All, J/K (and shift+↓/↑) move the highlighted bookmark one place down or
-// up, saving each time, and the cursor follows it. The full help lists them.
+// up, saving each time, and the cursor follows it. The help page lists them.
 func TestReorderOnAll(t *testing.T) {
 	all := []string{"BASH", "CS310", "PATHPIN", "GHOSTTY", "NOTES", "CSSLAB"}
 	if help, _ := press(groupModel(t), runes("?")); !helpShows(help, "J/K", "reorder") {
-		t.Errorf("the full help (?) should mention J/K:\n%s", plain(help.View()))
+		t.Errorf("the help page (?) should mention J/K:\n%s", plain(help.View()))
 	}
 	for name, keys := range map[string][2]tea.KeyMsg{"J/K": {keyJ, keyK}, "shift+arrows": {keyShiftDown, keyShiftUp}} {
 		m := selectLabel(t, groupModel(t), "CS310")

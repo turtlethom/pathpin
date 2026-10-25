@@ -27,7 +27,7 @@ func labelOnDisk(t *testing.T, m Model, label string) (string, bool) {
 func TestRenameOpensLabelField(t *testing.T) {
 	m := newTestModel(t, config.Bookmark{Label: "Day Job", Path: "work"})
 	if help, _ := press(m, runes("?")); !helpShows(help, "n", "rename") {
-		t.Errorf("the full help (?) should mention n:\n%s", plain(help.View()))
+		t.Errorf("the help page (?) should mention n:\n%s", plain(help.View()))
 	}
 	m, _ = press(m, runes("n"))
 	if m.mode == modeBrowse || !strings.Contains(plain(m.View()), "Label: Day Job") {

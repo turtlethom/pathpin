@@ -62,8 +62,9 @@ func bindingHints(bindings []key.Binding) []hint {
 }
 
 // helpView is the help under the list: one line of the keys that apply now,
-// or with ? bubbles' full help, each line cut to the window. It's empty while
-// a picker is open, since the picker's keys are on the bottom line.
+// cut to the window (? opens the help page, helpPage, for the rest). It's
+// empty while a picker is open, since the picker's keys are on the bottom
+// line.
 //
 // pathpin draws this instead of the list because bubbles' help can't cut its
 // line to a narrow window: once even its … doesn't fit, it adds every key left.
@@ -75,14 +76,5 @@ func (m Model) helpView() string {
 	}
 	// A style's frame size is its padding, border and margin, left plus right.
 	width := m.width - m.styles.app.GetHorizontalFrameSize() - m.styles.help.GetHorizontalFrameSize()
-	if m.list.Help.ShowAll {
-		h := m.list.Help
-		h.Width = 0 // all the columns; they're cut to the window below
-		full := h.FullHelpView(m.list.FullHelp())
-		if width > 0 {
-			full = lipgloss.NewStyle().MaxWidth(width).Render(full)
-		}
-		return m.styles.help.Render(full)
-	}
 	return m.styles.help.Render(m.hints(width, bindingHints(m.list.ShortHelp())...))
 }

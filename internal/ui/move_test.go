@@ -155,8 +155,8 @@ func newGroup(t *testing.T, m Model) Model {
 // picker's keys are on the bottom line, and ? lists m.
 func TestGroupPickerOpens(t *testing.T) {
 	m := selectLabel(t, groupModel(t), "CS310") // School
-	if help, _ := press(m, runes("?")); !helpShows(help, "m", "group") {
-		t.Errorf("the full help (?) should list m group:\n%s", plain(help.View()))
+	if help, _ := press(m, runes("?")); !helpShows(help, "m", "move to group") {
+		t.Errorf("the help page (?) should list m move to group:\n%s", plain(help.View()))
 	}
 	m = pressM(t, m)
 	pickerOrder(t, m, "Config", "School", newGroupRow)

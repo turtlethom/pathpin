@@ -27,7 +27,7 @@ func pressN(m Model) Model {
 func TestRenameGroupOpensField(t *testing.T) {
 	m := schoolTab(t)
 	if help, _ := press(m, runes("?")); !helpShows(help, "N", "rename group") {
-		t.Errorf("the full help (?) should mention N:\n%s", plain(help.View()))
+		t.Errorf("the help page (?) should mention N:\n%s", plain(help.View()))
 	}
 	m = pressN(m)
 	if m.mode == modeBrowse || !strings.Contains(plain(m.View()), "Rename group: School") {

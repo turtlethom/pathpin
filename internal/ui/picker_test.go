@@ -95,7 +95,7 @@ func saved(m Model) bool {
 func TestThemePickerOpens(t *testing.T) {
 	m := colorsModel(t, config.Colors{})
 	if help, _ := press(m, runes("?")); !helpShows(help, "t", "appearance") {
-		t.Errorf("the full help (?) should mention t:\n%s", plain(help.View()))
+		t.Errorf("the help page (?) should mention t:\n%s", plain(help.View()))
 	}
 	m = openPicker(t, m)
 	for _, row := range pickerRows {

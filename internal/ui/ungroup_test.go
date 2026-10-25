@@ -17,7 +17,7 @@ import (
 func TestUngroupOneAsks(t *testing.T) {
 	m := selectLabel(t, groupModel(t), "BASH") // Config
 	if help, _ := press(m, runes("?")); !helpShows(help, "u", "ungroup") {
-		t.Errorf("the full help (?) should list u ungroup:\n%s", plain(help.View()))
+		t.Errorf("the help page (?) should list u ungroup:\n%s", plain(help.View()))
 	}
 	for _, k := range []tea.KeyMsg{runes("n"), runes("q"), {Type: tea.KeyEsc}} {
 		m, _ := press(m, runes("u"))
