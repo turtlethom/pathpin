@@ -87,6 +87,10 @@ type Model struct {
 	// tab is the open tab by name: config.TabAll, a group, or config.TabOther.
 	// A name, not a position, because tabs shift when a group empties.
 	tab string
+	// groupsOnly hides the All and Other tabs (.). It belongs to this run of
+	// the menu, like the open tab: . never saves it, and [menu] tabs only sets
+	// how it starts.
+	groupsOnly bool
 	// themeRow is the appearance picker's highlighted row, and draft the copy
 	// of the config it shows; m.cfg stays as saved until enter there. A value,
 	// not a pointer, so each Model copy has its own.
@@ -114,7 +118,14 @@ type Model struct {
 // folders in the background, and rows show as present until then.
 func New(cfg *config.Config, configPath string) Model {
 	gone := map[string]bool{}
-	l := list.New(itemsFrom(cfg, config.TabAll, gone), delegate{}, 0, 0) // restyle sets the real delegate
+	// [menu] tabs = "groups" starts with All and Other hidden, on the first
+	// group (if there are groups; else there's nothing to hide behind).
+	groupsOnly := strings.EqualFold(cfg.Menu.Tabs, tabsGroups) && len(cfg.Groups()) > 0
+	tab := config.TabAll
+	if groupsOnly {
+		tab = cfg.Groups()[0]
+	}
+	l := list.New(itemsFrom(cfg, tab, gone), delegate{}, 0, 0) // restyle sets the real delegate
 	l.Title = menuTitle
 	// One column less than the list's default, so the badge's block lines up
 	// with the selected row's.
@@ -127,7 +138,7 @@ func New(cfg *config.Config, configPath string) Model {
 	// list still says which keys apply for the short line.
 	l.SetShowHelp(false)
 	l.KeyMap.ShowFullHelp.SetHelp("?", "help")
-	setHelpKeys(&l, tabs(cfg) != nil)
+	setHelpKeys(&l, tabs(cfg, groupsOnly) != nil)
 
 	group := newField("Group: ")
 	group.ShowSuggestions = true // tab completes an existing group's name
@@ -135,8 +146,8 @@ func New(cfg *config.Config, configPath string) Model {
 	cwd, _ := os.Getwd() // "" if it fails; a then reports the folder is gone
 	m := Model{
 		mode: modeBrowse, list: l, cfg: cfg, configPath: configPath, cwd: cwd,
-		input: newField("Label: "), group: group, hex: newField(""), tab: config.TabAll, gone: gone,
-		act: systemActions(),
+		input: newField("Label: "), group: group, hex: newField(""), tab: tab, groupsOnly: groupsOnly,
+		gone: gone, act: systemActions(),
 	}
 	m.restyle(cfg)
 	return m
@@ -348,6 +359,15 @@ func (m Model) updateBrowse(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.choose()
 		case "q":
 			return m, tea.Quit
+		case ".":
+			if len(m.cfg.Groups()) == 0 {
+				if len(m.cfg.Bookmarks) > 0 {
+					m.message = "No groups to show"
+				}
+				return m, nil
+			}
+			m.groupsOnly = !m.groupsOnly
+			return m, m.syncTabs() // a hidden All or Other moves to the first group
 		case "?":
 			// The page replaces the whole screen (see View); the list keeps its
 			// size, cursor and filter for when it closes.
@@ -398,7 +418,7 @@ func (m Model) updateBrowse(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "J", "K", "shift+down", "shift+up":
 			return m.reorder(key.String() == "J" || key.String() == "shift+down")
 		case "tab", "shift+tab":
-			names := tabs(m.cfg)
+			names := m.tabNames()
 			if names == nil {
 				return m, nil // no groups, no tabs
 			}
@@ -407,7 +427,11 @@ func (m Model) updateBrowse(msg tea.Msg) (tea.Model, tea.Cmd) {
 				step = -1
 			}
 			i := slices.IndexFunc(names, func(n string) bool { return strings.EqualFold(n, m.tab) })
-			return m, m.showTab(names[(i+step+len(names))%len(names)])
+			next := names[(i+step+len(names))%len(names)]
+			if strings.EqualFold(next, m.tab) {
+				return m, nil // one tab (a single group, hidden): keep the filter and cursor
+			}
+			return m, m.showTab(next)
 		}
 	}
 	// The list is itself a Bubble Tea model with its own Update. Passing it
@@ -437,7 +461,7 @@ func (m *Model) resize() {
 	if help := m.helpView(); help != "" {
 		reserved += lipgloss.Height(help)
 	}
-	if tabs(m.cfg) != nil {
+	if m.tabNames() != nil {
 		reserved += 3 // a blank line, the tab bar and its rule
 	}
 	if m.panelOpen() {
@@ -462,14 +486,35 @@ func (m *Model) showTab(name string) tea.Cmd {
 // so it resizes for the tab bar, updates the help, and opens All if the open
 // tab is gone (its last bookmark was removed).
 func (m *Model) syncTabs() tea.Cmd {
-	names := tabs(m.cfg)
+	if len(m.cfg.Groups()) == 0 {
+		m.groupsOnly = false // nothing to hide behind; a later group shows every tab
+	}
+	names := m.tabNames()
 	setHelpKeys(&m.list, names != nil)
 	m.resize()
 	open := slices.ContainsFunc(names, func(n string) bool { return strings.EqualFold(n, m.tab) })
-	if m.tab != config.TabAll && !open {
-		return m.showTab(config.TabAll)
+	if names != nil && !open {
+		return m.showTab(names[0]) // the open tab is gone or hidden: the first one
+	}
+	if names == nil && m.tab != config.TabAll {
+		return m.showTab(config.TabAll) // the last group went: every bookmark
 	}
 	return nil
+}
+
+// hiddenCount is how many bookmarks no shown tab lists: with All and Other
+// hidden, Other's (every grouped one is on its group's tab).
+func (m Model) hiddenCount() int {
+	if !m.groupsOnly {
+		return 0
+	}
+	n := 0
+	for _, b := range m.cfg.Bookmarks {
+		if inTab(b, config.TabOther) {
+			n++
+		}
+	}
+	return n
 }
 
 // updateConfirm handles a y/N prompt: y or Y confirms, any other key cancels.
@@ -542,7 +587,13 @@ func (m Model) apply(p pending) (tea.Model, tea.Cmd) {
 	case confirmUngroup:
 		// The group's tab is gone; its bookmarks are on All (and Other).
 		status := fmt.Sprintf("Ungrouped %s from %s", bookmarks(ungrouped), p.from)
-		return m, tea.Batch(m.afterGroupRename(config.TabAll), m.list.NewStatusMessage(status))
+		// With All hidden, the first group left (afterGroupRename's syncTabs
+		// shows All if none is).
+		to := config.TabAll
+		if names := m.tabNames(); m.groupsOnly && names != nil {
+			to = names[0]
+		}
+		return m, tea.Batch(m.afterGroupRename(to), m.list.NewStatusMessage(status))
 	case confirmUngroupBookmark:
 		// Like a move: the row may leave a group's tab, which may empty.
 		b, _ := next.Find(p.label)
@@ -603,7 +654,14 @@ func (m Model) startAdd() (tea.Model, tea.Cmd) {
 		if b.Path == filepath.Clean(m.cwd) {
 			var cmd tea.Cmd
 			if !inTab(b, m.tab) {
-				cmd = m.showTab(config.TabAll) // it's on another tab
+				// All, which lists it; with All hidden, its group's tab, or for
+				// an ungrouped bookmark All after all, with every tab shown.
+				tab := config.TabAll
+				if g := m.cfg.GroupOf(b); m.groupsOnly && g != "" {
+					tab = g
+				}
+				m.groupsOnly = m.groupsOnly && tab != config.TabAll
+				cmd = m.showTab(tab)
 			}
 			m.list.ResetFilter()
 			m.list.Select(slices.IndexFunc(m.list.Items(), func(li list.Item) bool { return li.(item).Path == b.Path }))
@@ -972,7 +1030,7 @@ func (m Model) View() string {
 // tabBar draws the tabs with the open one as a block like the title badge, or
 // "" when there are no groups. It's cut to the list's width if there are many.
 func (m Model) tabBar() string {
-	names := tabs(m.cfg)
+	names := m.tabNames()
 	if names == nil {
 		return ""
 	}
@@ -984,7 +1042,16 @@ func (m Model) tabBar() string {
 		}
 		parts[i] = style.Render(n)
 	}
-	return m.styles.tabBar.MaxWidth(m.list.Width()).Render(strings.Join(parts, " "))
+	bar := strings.Join(parts, " ")
+	// While All and Other are hidden, how many bookmarks are out of view,
+	// where the hidden tabs would be; left out if it doesn't fit whole.
+	if n := m.hiddenCount(); n > 0 {
+		note := " " + m.styles.muted.Render(fmt.Sprintf("· %d hidden (.)", n))
+		if lipgloss.Width(bar+note) <= m.list.Width()-m.styles.tabBar.GetHorizontalFrameSize() {
+			bar += note
+		}
+	}
+	return m.styles.tabBar.MaxWidth(m.list.Width()).Render(bar)
 }
 
 // tabRule is the line under the tab bar, from the open tab's column to the
@@ -1067,13 +1134,26 @@ func newItem(cfg *config.Config, b config.Bookmark, tab string, gone map[string]
 	return it
 }
 
+// The ways the menu can start, set with [menu] tabs. Empty means all.
+const (
+	tabsAll    = "all"    // every tab: All, the groups, Other
+	tabsGroups = "groups" // the groups only (All and Other hidden, as with .)
+)
+
+// KnownTabs reports whether s is a [menu] tabs the menu knows, in any case.
+// Empty counts, since it means all; anything else unknown gives all too, and
+// cmd warns about it.
+func KnownTabs(s string) bool {
+	return s == "" || strings.EqualFold(s, tabsAll) || strings.EqualFold(s, tabsGroups)
+}
+
 // tabs lists the menu's tabs: All, the groups in the order they first appear,
-// then Other if some bookmarks are ungrouped. It's nil when none has a group,
-// so the menu shows no tab bar.
-func tabs(cfg *config.Config) []string {
+// then Other if some bookmarks are ungrouped; with groupsOnly (.), just the
+// groups. It's nil when none has a group, so the menu shows no tab bar.
+func tabs(cfg *config.Config, groupsOnly bool) []string {
 	groups := cfg.Groups()
-	if len(groups) == 0 {
-		return nil
+	if len(groups) == 0 || groupsOnly {
+		return groups
 	}
 	names := append([]string{config.TabAll}, groups...)
 	if slices.ContainsFunc(cfg.Bookmarks, config.Bookmark.Ungrouped) {
@@ -1081,6 +1161,9 @@ func tabs(cfg *config.Config) []string {
 	}
 	return names
 }
+
+// tabNames are the tabs the menu shows now.
+func (m Model) tabNames() []string { return tabs(m.cfg, m.groupsOnly) }
 
 // inTab reports whether b shows on a tab: All shows every bookmark, Other the
 // ungrouped ones, and a group's tab its bookmarks (in any case).

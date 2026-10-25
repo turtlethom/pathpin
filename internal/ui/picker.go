@@ -70,6 +70,14 @@ func appearanceRows() []pickerRow {
 			},
 			set: func(c *config.Config, v string) { c.Menu.Icons = v == "on" },
 		},
+		{
+			// How the menu starts. It doesn't preview: . is the live switch,
+			// and the menu's state isn't the saved default.
+			key: "tabs", hint: "every tab, or groups only", def: tabsAll,
+			values: func() []string { return []string{"", tabsGroups} },
+			get:    func(c *config.Config) string { return c.Menu.Tabs },
+			set:    func(c *config.Config, v string) { c.Menu.Tabs = v },
+		},
 	}
 }
 

@@ -24,7 +24,7 @@ type helpBlock struct {
 // helpBlocks are the help page's blocks, in reading order: three to a row
 // at 80 columns.
 var helpBlocks = []helpBlock{
-	{"Navigate", [][2]string{{"↑↓/jk", "move"}, {"←→/hl", "page"}, {"g/G", "top/end"}, {"tab/⇧tab", "group"}}},
+	{"Navigate", [][2]string{{"↑↓/jk", "move"}, {"←→/hl", "page"}, {"g/G", "top/end"}, {"tab/⇧tab", "group"}, {".", "groups only"}}},
 	{"Bookmarks", [][2]string{{"a", "add"}, {"r", "remove"}, {"c", "clear all"}, {"J/K", "reorder"}}},
 	{"Names", [][2]string{{"n", "rename"}, {"N", "rename group"}}},
 	{"Groups", [][2]string{{"m", "move to group"}, {"u", "ungroup"}}},

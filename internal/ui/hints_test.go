@@ -172,6 +172,7 @@ func TestOnlyThemeColors(t *testing.T) {
 		"no matches":      keys(groups, runes("/"), runes("zzz")),
 		"filter applied":  keys(groups, runes("/"), runes("cs"), enterKey),
 		"help page":       keys(groups, runes("?")),
+		"tabs hidden":     keys(groups, runes(".")),
 		"confirm":         keys(groups, runes("r")),
 		"rename field":    keys(groups, runes("n")),
 		"group picker":    keys(groups, runes("m")),

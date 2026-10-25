@@ -239,6 +239,27 @@ func TestSaveLoadRoundTrip(t *testing.T) {
 	}
 }
 
+// [menu] tabs (how the menu starts: "all", or "groups" with All and Other
+// hidden) loads and saves as written. config only stores it: any value loads,
+// and the menu treats one it doesn't know as "all".
+func TestMenuTabs(t *testing.T) {
+	home := setupHome(t)
+	path := filepath.Join(home, ".config", "pathpin", "config.toml")
+	for _, value := range []string{"groups", "all", "sideways"} {
+		writeFile(t, path, "[menu]\ntabs = \""+value+"\"\n")
+		cfg, err := Load(path)
+		if err != nil {
+			t.Fatalf("tabs = %q should load: %v", value, err)
+		}
+		if err := Save(path, cfg); err != nil {
+			t.Fatal(err)
+		}
+		if disk := readFile(t, path); !strings.Contains(disk, `tabs = "`+value+`"`) {
+			t.Errorf("tabs = %q should be saved as written; file:\n%s", value, disk)
+		}
+	}
+}
+
 // A config that doesn't turn anything on in [menu] doesn't grow an empty
 // [menu] table when saved.
 func TestSaveOmitsEmptyMenu(t *testing.T) {

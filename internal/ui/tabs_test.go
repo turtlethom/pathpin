@@ -54,18 +54,40 @@ func shown(m Model) []string {
 // bar sits between the title and the status line.
 func tabBar(t *testing.T, m Model) []string {
 	t.Helper()
+	if i := tabBarAt(t, m); i >= 0 {
+		bar, _, _ := strings.Cut(strings.Split(plain(m.View()), "\n")[i], "·") // not the hidden count
+		return strings.Fields(bar)
+	}
+	return nil
+}
+
+// hiddenNote is what the tab bar says after the tabs while All and Other are
+// hidden ("2 hidden (.)"), or "".
+func hiddenNote(t *testing.T, m Model) string {
+	t.Helper()
+	if i := tabBarAt(t, m); i >= 0 {
+		_, note, _ := strings.Cut(strings.Split(plain(m.View()), "\n")[i], "·")
+		return strings.TrimSpace(note)
+	}
+	return ""
+}
+
+// tabBarAt is the tab bar's line number in the view, or -1 without one: the
+// line right above the ─ rule, between the title and the status line.
+func tabBarAt(t *testing.T, m Model) int {
+	t.Helper()
 	lines := strings.Split(plain(m.View()), "\n")
 	title := slices.IndexFunc(lines, func(l string) bool { return strings.Contains(l, "PATHPIN") })
 	status := statusLine(lines, title)
 	if title < 0 || status < 0 {
 		t.Fatalf("want the title line above the status line:\n%s", plain(m.View()))
 	}
-	for _, l := range lines[title+1 : status] {
-		if f := strings.Fields(l); len(f) > 0 && f[0] == config.TabAll {
-			return f
+	for i := title + 2; i < status; i++ {
+		if strings.HasPrefix(strings.TrimSpace(lines[i]), "───") {
+			return i - 1
 		}
 	}
-	return nil
+	return -1
 }
 
 // statusLine is the index of the list's status line ("6 bookmarks"), the
@@ -87,8 +109,11 @@ func statusLine(lines []string, title int) int {
 func activeTab(t *testing.T, m Model) string {
 	t.Helper()
 	withColor(t)
-	view := m.View()
-	line := rawLine(t, view, config.TabAll+" ")
+	i := tabBarAt(t, m)
+	if i < 0 {
+		t.Fatalf("no tab bar:\n%s", plain(m.View()))
+	}
+	line := strings.Split(m.View(), "\n")[i]
 	var active []string
 	for _, name := range tabBar(t, m) {
 		_, cs, _ := find(t, cells(line), name)

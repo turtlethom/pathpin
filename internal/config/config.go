@@ -64,6 +64,7 @@ type Colors struct {
 type Menu struct {
 	Icons     bool   `toml:"icons,omitempty"`     // Nerd Font icons before labels
 	Selection string `toml:"selection,omitempty"` // the selected row: "block" (default) or "bar"
+	Tabs      string `toml:"tabs,omitempty"`      // how the menu starts: "all" (default), or "groups" with All and Other hidden
 }
 
 // Config is the whole configuration file.

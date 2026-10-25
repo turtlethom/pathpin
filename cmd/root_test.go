@@ -484,6 +484,33 @@ func TestUnknownSelectionWarns(t *testing.T) {
 	}
 }
 
+// An unknown [menu] tabs gets one warning line when the menu opens, like an
+// unknown selection, and the menu starts with every tab. Known values, in
+// any case, never warn.
+func TestUnknownTabsWarns(t *testing.T) {
+	e := newRootEnv(t)
+	e.withColors(t, "[menu]\ntabs = \"group\"\n")
+	opened := false
+	_, stderr, err := e.run(t, func(*config.Config, string) (string, error) {
+		opened = true
+		return "", nil
+	})
+	if err != nil || !opened {
+		t.Fatalf("an unknown tabs should not stop the menu (err %v, opened %v)", err, opened)
+	}
+	want := `[menu] tabs = "group" is not all or groups, using all`
+	if !strings.Contains(stderr, want) || strings.Count(stderr, "\n") != 1 {
+		t.Errorf("want one line %q, got %q", want, stderr)
+	}
+	for _, ok := range []string{"groups", "All", ""} {
+		e.withColors(t, fmt.Sprintf("[menu]\ntabs = %q\n", ok))
+		_, stderr, err := e.run(t, func(*config.Config, string) (string, error) { return "", nil })
+		if err != nil || stderr != "" {
+			t.Errorf("tabs %q should not warn, got err %v, stderr %q", ok, err, stderr)
+		}
+	}
+}
+
 // A [colors] value that isn't a color gets one warning line each when the
 // menu opens. A theme name in a color key suggests the theme key instead.
 func TestInvalidColorWarns(t *testing.T) {

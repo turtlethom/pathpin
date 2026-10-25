@@ -16,7 +16,7 @@ import (
 )
 
 // pickerRows are the picker's rows, top to bottom, named as in the TOML.
-var pickerRows = []string{"theme", "primary", "secondary", "tertiary", "selected_text", "error", "selection", "icons"}
+var pickerRows = []string{"theme", "primary", "secondary", "tertiary", "selected_text", "error", "selection", "icons", "tabs"}
 
 // colorsModel builds a menu with two bookmarks and these [colors].
 func colorsModel(t *testing.T, c config.Colors) Model {
@@ -159,7 +159,7 @@ func TestThemePickerFitsWindow(t *testing.T) {
 					t.Errorf("%s, %s: a line is %d columns: %q", name, size, w, plain(l))
 				}
 			}
-			pickerLine(t, m, "icons") // the last row still shows
+			pickerLine(t, m, "tabs") // the last row still shows
 		}
 	}
 }

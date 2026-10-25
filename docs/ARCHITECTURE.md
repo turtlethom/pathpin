@@ -187,6 +187,14 @@ has a row per group, so when they don't fit it scrolls (`groupWindow`),
 leaving the list at its shortest (`minListHeight`) with the highlighted
 bookmark in view.
 
+The tabs come from `tabs(cfg, groupsOnly)` (`m.tabNames()`). `groupsOnly` is
+`.`'s state: All and Other hidden. It's the menu's own state, like the open
+tab, so `.` never saves it; `[menu] tabs` (the picker's `tabs` row) only sets
+how it starts. While it's on, `tabBar()` adds `· 2 hidden (.)` after the tabs.
+Every change to the bookmarks ends in `syncTabs`, which keeps the tabs and the
+help keys in step, opens the first tab if the open one went away or was
+hidden, and turns `groupsOnly` off when no groups are left.
+
 With `?`, `View` draws `helpPage()` instead of all of the above (`help.go`):
 the badge, every key in titled blocks laid out as a grid (`helpSections()` is
 the one list of them), and `? esc q close`. The list isn't drawn but keeps its

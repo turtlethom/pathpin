@@ -30,7 +30,7 @@ func (m Model) helpSections() []helpSection {
 	}
 	menu = append(menu, hint{"t", "appearance"}, hint{"?", "help"}, hint{"q", "quit"})
 	return []helpSection{
-		{"Navigate", []hint{{"↑↓/jk", "move"}, {"←→/hl", "page"}, {"g/G", "top/end"}, {"tab/⇧tab", "group"}}},
+		{"Navigate", []hint{{"↑↓/jk", "move"}, {"←→/hl", "page"}, {"g/G", "top/end"}, {"tab/⇧tab", "group"}, {".", "groups only"}}},
 		{"Bookmarks", []hint{{"a", "add"}, {"r", "remove"}, {"c", "clear all"}, {"J/K", "reorder"}}},
 		{"Names", []hint{{"n", "rename"}, {"N", "rename group"}}},
 		{"Groups", []hint{{"m", "move to group"}, {"u", "ungroup"}}},

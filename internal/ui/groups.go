@@ -92,7 +92,7 @@ const minListHeight = 7
 func (m Model) groupRoom() int {
 	_, v := m.styles.app.GetFrameSize()
 	room := m.height - v - minListHeight - 1 - 1 // the bottom line, and the blank line above the picker
-	if tabs(m.cfg) != nil {
+	if m.tabNames() != nil {
 		room -= 3 // a blank line, the tab bar and its rule
 	}
 	return max(room, 4) // a group between the two scroll lines, and + new group…
