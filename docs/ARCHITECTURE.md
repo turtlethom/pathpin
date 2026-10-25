@@ -105,16 +105,23 @@ the mode:
 | Mode | Opened by | Handled by | Leaves to |
 |---|---|---|---|
 | `modeBrowse` | start | `updateBrowse` | any mode below; `enter`/`q`/`esc` quit |
-| `modeConfirm` | `r`, `c`, `N` (merge or ungroup) | `updateConfirm` → `apply` | browse (`y` applies, any other key cancels) |
+| `modeConfirm` | `r`, `c`, `u`, `N` (merge or ungroup) | `updateConfirm` → `apply` | browse (`y` applies, any other key cancels) |
 | `modeInput` | `a` | `updateField` → `addFromField` | browse |
-| `modeGroup` | `m` | `updateField` → `move` | browse |
+| `modeGroupPick` | `m` | `updateGroupPick` → `move` | browse (`enter` on a group moves, `esc` cancels), or the new-group field |
+| `modeGroup` | `+ new group…` in the group picker | `updateField` → `createGroup` → `move` | browse, or back to the group picker |
 | `modeRename` | `n` | `updateField` → `rename` | browse |
 | `modeGroupName` | `N` | `updateField` → `renameGroup` | browse, or confirm for a merge/ungroup |
 | `modeTheme` | `t` | `updateTheme` | browse (`enter` saves, `esc` cancels), or hex |
 | `modeHex` | `#` in the picker | `updateField` → `setHex` | back to the picker |
 
-The four text-field modes share `updateField`, which is handed the field to
-edit (`labelField`, `groupField`, `hexField`) and what `enter` does.
+The text-field modes share `updateField`, which is handed the field to edit
+(`labelField`, `groupField`, `hexField`) and what `enter` does.
+
+The two pickers (`t` in `picker.go`, `m` in `groups.go`) are built the same
+way: a mode, a row index on the Model (`themeRow`, `groupRow`), and a field
+that belongs to the picker (`#`'s hex field, `+ new group…`'s field). While
+the field is open the picker stays drawn behind it (`panel()` draws either
+mode), and `esc` in the field steps back to the picker instead of out.
 
 Keys that don't belong to pathpin (arrows, `/`, `?`, `g`, paging) go to the
 embedded `bubbles/list` through `m.list, cmd = m.list.Update(msg)`. That line
@@ -169,12 +176,15 @@ every save replaces the one `.bak` backup.
  3 bookmarks                   ← status bar (the list's)
                                ← blank line
  ↑/k up • ↓/j down • / filter  ← helpView() (hidden while picking)
- theme      ◂ nord ▸           ← pickerView() (only with t)
+ theme      ◂ nord ▸           ← panel(): pickerView() with t, groupPickerView() with m
  Remove NVIM? y/N              ← bottomLine(): prompt, field, or message
 ```
 
 `resize` gives the list whatever height is left after the help, tabs, picker
-and bottom line, so the whole menu always fits the window.
+and bottom line, so the whole menu always fits the window. The group picker
+has a row per group, so when they don't fit it scrolls (`groupWindow`),
+leaving the list at its shortest (`minListHeight`) with the highlighted
+bookmark in view.
 
 ### Rows: item, delegate, filter
 

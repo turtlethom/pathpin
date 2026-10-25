@@ -27,7 +27,8 @@ const (
 	modeBrowse    mode = iota // the list is active and keys trigger actions
 	modeConfirm               // a y/N prompt is showing; only y confirms
 	modeInput                 // typing a label for a new bookmark
-	modeGroup                 // typing a group for the highlighted bookmark (m)
+	modeGroupPick             // the group picker (m) is open
+	modeGroup                 // typing a new group's name for the highlighted bookmark (m, + new group…)
 	modeRename                // typing a new label for the highlighted bookmark (n)
 	modeGroupName             // typing a new name for the open group's tab (N)
 	modeTheme                 // the theme picker (t) is open
@@ -41,13 +42,14 @@ const (
 	confirmRemove confirmAction = iota
 	confirmClear
 	confirmMerge
-	confirmUngroup
+	confirmUngroup         // a whole group (N with an empty name)
+	confirmUngroupBookmark // one bookmark (u)
 )
 
 // pending is the action waiting on the prompt.
 type pending struct {
 	action     confirmAction
-	label      string // for confirmRemove
+	label      string // for confirmRemove and confirmUngroupBookmark
 	from, into string // for confirmMerge: the group renamed, and the group it joins; for confirmUngroup: from
 }
 
@@ -73,9 +75,9 @@ type Model struct {
 	input    textinput.Model
 	inputErr string // shown beside the label or group field until the next key
 
-	group   textinput.Model // m's field; suggests existing group names
+	group   textinput.Model // the new-group field (m) and N's field, which suggests the other groups
 	hex     textinput.Model // the theme picker's field for any color (#)
-	editing string          // the bookmark (label) or group the open field is for
+	editing string          // the bookmark (label) or group the open field or group picker is for
 
 	// message is shown on the bottom line until the next key.
 	message    string
@@ -89,6 +91,10 @@ type Model struct {
 	// not a pointer, so each Model copy has its own.
 	themeRow int
 	draft    config.Config
+	// groupRow is the group picker's highlighted row: a group from
+	// m.cfg.Groups(), or the + new group… row after them. groupTop is the
+	// first group in view when they don't all fit (see groupWindow).
+	groupRow, groupTop int
 
 	// gone holds the folders found missing, by path: by the checks Init starts
 	// (see checkFolder), or by enter. Rows read it instead of the disk. A path
@@ -190,7 +196,8 @@ func bind(k, desc string) key.Binding {
 // their own, through the delegate (see restyle), so the full help stays short
 // enough for an 80x24 terminal.
 func editKeys() []key.Binding {
-	return []key.Binding{bind("a", "add"), bind("r", "remove"), bind("c", "clear"), bind("m", "move"), bind("n", "rename"), bind("e", "edit")}
+	return []key.Binding{bind("a", "add"), bind("r", "remove"), bind("c", "clear"),
+		bind("m", "group"), bind("u", "ungroup"), bind("n", "rename"), bind("e", "edit")}
 }
 
 // setHelpKeys adds pathpin's other keys to the list's help. The short help line
@@ -325,8 +332,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.updateConfirm(msg)
 	case modeInput:
 		return m.updateField(msg, labelField, Model.addFromField)
+	case modeGroupPick:
+		return m.updateGroupPick(msg)
 	case modeGroup:
-		return m.updateField(msg, groupField, Model.move)
+		return m.updateField(msg, groupField, Model.createGroup)
 	case modeRename:
 		return m.updateField(msg, labelField, Model.rename)
 	case modeGroupName:
@@ -360,6 +369,17 @@ func (m Model) updateBrowse(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if it, ok := m.list.SelectedItem().(item); ok {
 				m.mode, m.pending = modeConfirm, pending{action: confirmRemove, label: it.Label}
 			}
+			return m, nil
+		case "u":
+			it, ok := m.list.SelectedItem().(item)
+			if !ok {
+				return m, nil // empty list
+			}
+			if it.Ungrouped() {
+				m.message = displayLabel(it.Label) + " has no group"
+				return m, nil
+			}
+			m.mode, m.pending = modeConfirm, pending{action: confirmUngroupBookmark, label: it.Label}
 			return m, nil
 		case "c":
 			if len(m.cfg.Bookmarks) > 0 {
@@ -412,8 +432,8 @@ func (m Model) updateBrowse(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // resize fits the list to the window, leaving room for the bottom line, the
-// help, the tab bar while there are groups, and the theme picker while it's
-// open. The list keeps a column of margin on each side.
+// help, the tab bar while there are groups, and a picker while one is open.
+// The list keeps a column of margin on each side.
 //
 // It has a pointer receiver so it can change the Model it's called on. Update
 // has a value receiver, so the m it holds is its own copy and calling
@@ -433,8 +453,9 @@ func (m *Model) resize() {
 	if tabs(m.cfg) != nil {
 		reserved += 3 // a blank line, the tab bar and its rule
 	}
-	if m.picking() {
-		reserved += 1 + len(appearanceRows()) // a blank line, then the rows
+	if m.panelOpen() {
+		// The rows and the blank line above them (the picker style's margin).
+		reserved += lipgloss.Height(m.panel())
 	}
 	m.list.SetSize(m.width-h, m.height-v-reserved)
 }
@@ -500,6 +521,11 @@ func (m Model) apply(p pending) (tea.Model, tea.Cmd) {
 			m.message, m.messageErr = err.Error(), true
 			return m, nil
 		}
+	case confirmUngroupBookmark:
+		if err := next.SetGroup(p.label, ""); err != nil {
+			m.message, m.messageErr = err.Error(), true
+			return m, nil
+		}
 	}
 	if err := config.Save(m.configPath, next); err != nil {
 		m.message, m.messageErr = "couldn't save: "+err.Error(), true
@@ -531,6 +557,11 @@ func (m Model) apply(p pending) (tea.Model, tea.Cmd) {
 		// The group's tab is gone; its bookmarks are on All (and Other).
 		status := fmt.Sprintf("Ungrouped %s from %s", bookmarks(ungrouped), p.from)
 		return m, tea.Batch(m.afterGroupRename(config.TabAll), m.list.NewStatusMessage(status))
+	case confirmUngroupBookmark:
+		// Like a move: the row may leave a group's tab, which may empty.
+		b, _ := next.Find(p.label)
+		status := displayLabel(b.Label) + " has no group now"
+		return m, tea.Batch(m.reloadRows(b.Path), m.list.NewStatusMessage(status), m.syncTabs())
 	}
 	return m, nil
 }
@@ -616,11 +647,16 @@ func (m Model) updateField(msg tea.Msg, field func(*Model) *textinput.Model, sav
 	if k, ok := msg.(tea.KeyMsg); ok {
 		switch k.String() {
 		case "esc":
-			if m.mode == modeHex {
-				m.mode = modeTheme // the hex field belongs to the picker
-			} else {
+			// The hex and new-group fields belong to a picker; esc goes back to it.
+			switch m.mode {
+			case modeHex:
+				m.mode = modeTheme
+			case modeGroup:
+				m.mode = modeGroupPick
+			default:
 				m.mode = modeBrowse
 			}
+			m.inputErr = "" // the picker shows errors too; this one was the field's
 			f.Blur()
 			return m, nil
 		case "enter":
@@ -638,7 +674,8 @@ func (m Model) updateField(msg tea.Msg, field func(*Model) *textinput.Model, sav
 }
 
 // labelField, groupField and hexField pick a text field out of a Model, for
-// updateField: a, n use the label field, m and N the group field, # the hex.
+// updateField: a, n use the label field, m's new group and N the group field,
+// # the hex.
 func labelField(m *Model) *textinput.Model { return &m.input }
 func groupField(m *Model) *textinput.Model { return &m.group }
 func hexField(m *Model) *textinput.Model   { return &m.hex }
@@ -683,69 +720,6 @@ func (m Model) add(label string) (tea.Model, tea.Cmd) {
 	insertCmd := m.list.InsertItem(n, newItem(m.cfg, added, m.tab, m.gone))
 	m.list.Select(n)
 	return m, tea.Batch(insertCmd, m.list.NewStatusMessage("Added "+displayLabel(added.Label)), m.syncTabs())
-}
-
-// startMove opens the group field for the highlighted bookmark, filled with
-// its group.
-func (m Model) startMove() (tea.Model, tea.Cmd) {
-	it, ok := m.list.SelectedItem().(item)
-	if !ok {
-		return m, nil // empty list
-	}
-	m.mode, m.inputErr, m.editing = modeGroup, "", it.Label
-	m.group.Prompt = "Group: " // N shares this field with its own prompt and hint
-	m.group.Placeholder = ""
-	names := m.cfg.Groups()
-	m.group.SetSuggestions(names)
-	m.group.SetValue(it.Group)
-	m.group.CursorEnd()
-	// Wide enough for any suggestion, so its completion shows; longer names
-	// scroll sideways.
-	m.group.Width = 12
-	for _, n := range names {
-		m.group.Width = max(m.group.Width, len([]rune(n))+1)
-	}
-	return m, m.group.Focus()
-}
-
-// move saves the group field's value as the bookmark's group, like add: change
-// a copy, save it, then swap it in. Errors keep the field open to fix.
-func (m Model) move(group string) (tea.Model, tea.Cmd) {
-	next := m.edit()
-	if err := next.SetGroup(m.editing, group); err != nil {
-		m.inputErr = err.Error()
-		return m, nil
-	}
-	// Unchanged (SetGroup has matched the spelling): don't save. Every save
-	// replaces config.toml.bak, so a save that changes nothing would throw
-	// away the last real backup.
-	before, _ := m.cfg.Find(m.editing)
-	if after, _ := next.Find(m.editing); after.Group == before.Group {
-		m.mode = modeBrowse
-		m.group.Blur()
-		status := displayLabel(before.Label) + " stays in " + before.Group
-		if before.Group == "" {
-			status = displayLabel(before.Label) + " still has no group"
-		}
-		return m, m.list.NewStatusMessage(status)
-	}
-	if err := config.Save(m.configPath, next); err != nil {
-		m.inputErr = "couldn't save: " + err.Error()
-		return m, nil
-	}
-
-	m.cfg = next
-	m.mode = modeBrowse
-	m.group.Blur()
-	moved, _ := next.Find(m.editing)
-	status := "Moved " + displayLabel(moved.Label) + " to " + moved.Group
-	if moved.Group == "" {
-		status = displayLabel(moved.Label) + " has no group now"
-	}
-
-	// The moved row may leave the open tab; syncTabs then opens All if the tab
-	// emptied. Go evaluates the arguments left to right, so rows come first.
-	return m, tea.Batch(m.reloadRows(moved.Path), m.list.NewStatusMessage(status), m.syncTabs())
 }
 
 // reloadRows rebuilds the open tab's rows after a change, keeping the cursor
@@ -997,10 +971,10 @@ func (m Model) View() string {
 		// empties. No help: the message says what to do.
 		body = m.list.Styles.TitleBar.Render(m.styles.title.Render(menuTitle)) + "\n" + m.styles.empty.Render(emptyMessage) + "\n"
 	}
-	if m.picking() {
+	if m.panelOpen() {
 		// The empty menu's body already ends its last line; the picker's
 		// margin is the one blank line either way.
-		body = strings.TrimSuffix(body, "\n") + "\n" + m.pickerView()
+		body = strings.TrimSuffix(body, "\n") + "\n" + m.panel()
 	}
 	return m.styles.app.Render(body + "\n" + m.bottomLine())
 }
@@ -1039,6 +1013,8 @@ func (m Model) bottomLine() string {
 		return m.styles.prompt.Render(fmt.Sprintf("Delete all %d bookmarks? y/N", len(m.cfg.Bookmarks)))
 	case m.mode == modeConfirm && m.pending.action == confirmMerge:
 		return m.styles.prompt.Render(fmt.Sprintf("Merge %s into %s? y/N", m.pending.from, m.pending.into))
+	case m.mode == modeConfirm && m.pending.action == confirmUngroupBookmark:
+		return m.styles.prompt.Render(fmt.Sprintf("Ungroup %s? y/N", displayLabel(m.pending.label)))
 	case m.mode == modeConfirm && m.pending.action == confirmUngroup:
 		n := groupSize(m.cfg, m.pending.from)
 		all := "all "
@@ -1047,17 +1023,18 @@ func (m Model) bottomLine() string {
 		}
 		return m.styles.prompt.Render(fmt.Sprintf("Ungroup %s%s in %s? y/N", all, bookmarks(n), m.pending.from))
 	case m.mode == modeTheme && !m.messageErr:
-		// Cut to the room the bottom line has: the window, but for the frame's
-		// left padding and the line's indent.
-		width := m.width - m.styles.app.GetHorizontalFrameSize() - m.styles.note.GetHorizontalFrameSize()
-		return m.styles.note.Render(m.hints(width, pickerKeys...))
+		return m.styles.note.Render(m.hints(m.bottomWidth(), pickerKeys...))
+	case m.mode == modeGroupPick && m.inputErr != "":
+		return m.styles.errText.Render(m.inputErr)
+	case m.mode == modeGroupPick:
+		return m.styles.note.Render(m.hints(m.bottomWidth(), m.groupPickerKeys()...))
 	case m.mode == modeInput || m.mode == modeGroup || m.mode == modeRename || m.mode == modeGroupName || m.mode == modeHex:
 		field, keys := m.input, m.hints(0, hint{"enter", "save"}, hint{"esc", "cancel"})
 		switch m.mode {
 		case modeHex:
 			field, keys = m.hex, m.hints(0, hint{"enter", "set"}, hint{"esc", "back"})
 		case modeGroup:
-			field, keys = m.group, m.hints(0, hint{"tab", "complete"}, hint{"", "empty = no group"})
+			field, keys = m.group, m.hints(0, hint{"enter", "save"}, hint{"esc", "back"})
 		case modeGroupName:
 			field = m.group
 		}
@@ -1069,6 +1046,12 @@ func (m Model) bottomLine() string {
 		return m.styles.errText.Render(m.message)
 	}
 	return m.styles.note.Render(m.message)
+}
+
+// bottomWidth is the room a line of key hints has on the bottom line: the
+// window, but for the frame's left padding and the line's indent.
+func (m Model) bottomWidth() int {
+	return m.width - m.styles.app.GetHorizontalFrameSize() - m.styles.note.GetHorizontalFrameSize()
 }
 
 // itemsFrom makes list rows for the bookmarks on a tab, in config order, with

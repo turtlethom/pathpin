@@ -32,7 +32,7 @@ type Styles struct {
 	tab     lipgloss.Style         // a tab
 	tabOpen lipgloss.Style         // the open tab
 	rule    lipgloss.Style         // the line under the tabs
-	picker  lipgloss.Style         // the theme picker's panel
+	picker  lipgloss.Style         // a picker's panel (t, m)
 	picked  lipgloss.Style         // the picker's highlighted row
 }
 

@@ -57,7 +57,7 @@ func TestFullHelpFits(t *testing.T) {
 	for _, w := range []int{80, 40} {
 		m := groupModel(t).sized(w, 24)
 		m, _ = press(m, runes("?"))
-		if !helpShows(m, "a", "add") || (w == 80 && !helpShows(m, "J/K", "reorder")) {
+		if !helpShows(m, "a", "add") || (w == 80 && (!helpShows(m, "J/K", "reorder") || !helpShows(m, "?", "close help"))) {
 			t.Errorf("%d columns: ? should show the full help:\n%s", w, plain(m.View()))
 		}
 		lines := strings.Split(m.View(), "\n")
@@ -181,10 +181,12 @@ func TestHintColors(t *testing.T) {
 	}
 	checkHint(t, "rename field", line, "enter", "save")
 
-	group, _ := press(m, runes("m"))
-	if line := plain(rawLine(t, group.View(), "Group:")); !strings.Contains(line, "tab complete • empty = no group") {
-		t.Errorf("group field: want tab complete • empty = no group, got %q", line)
+	group, _ := press(m, runes("m")) // no groups: on + new group…
+	line = rawLine(t, group.View(), "enter new group")
+	if !strings.Contains(plain(line), newGroupKeysLine) {
+		t.Errorf("group picker: want %q, got %q", newGroupKeysLine, plain(line))
 	}
+	checkHint(t, "group picker", line, "enter", "new group")
 }
 
 // Nothing is drawn in bubbles' own colors: in every state of the menu, each
@@ -215,7 +217,9 @@ func TestOnlyThemeColors(t *testing.T) {
 		"full help":       keys(groups, runes("?")),
 		"confirm":         keys(groups, runes("r")),
 		"rename field":    keys(groups, runes("n")),
-		"group field":     keys(groups, runes("m")),
+		"group picker":    keys(groups, runes("m")),
+		"new group field": keys(groups, runes("m"), tea.KeyMsg{Type: tea.KeyUp}, enterKey), // ↑ wraps to + new group…
+		"ungroup confirm": keys(groups, runes("u")),
 		"picker":          keys(groups, runes("t")),
 		"hex field":       keys(groups, runes("t"), tea.KeyMsg{Type: tea.KeyDown}, runes("#")),
 		"missing + enter": keys(gone, enterKey),

@@ -99,8 +99,27 @@ func colorValues() []string {
 var pickerKeys = []hint{{"↑↓/jk", "row"}, {"←→/hl", "change"}, {"#", "hex"},
 	{"d", "reset"}, {"enter", "save"}, {"esc", "cancel"}}
 
-// picking reports whether the picker shows: its rows, or its hex field.
-func (m Model) picking() bool { return m.mode == modeTheme || m.mode == modeHex }
+// panelOpen reports whether a picker is open under the list: the appearance
+// picker (t, and its # field) or the group picker (m, and its new-group
+// field). resize makes room for it, View draws it, and the help hides.
+func (m Model) panelOpen() bool {
+	switch m.mode {
+	case modeTheme, modeHex, modeGroupPick, modeGroup:
+		return true
+	}
+	return false
+}
+
+// panel draws the open picker's rows, or "" while browsing.
+func (m Model) panel() string {
+	switch m.mode {
+	case modeTheme, modeHex:
+		return m.pickerView()
+	case modeGroupPick, modeGroup:
+		return m.groupPickerView()
+	}
+	return ""
+}
 
 // startTheme opens the picker on the theme row, with a copy of the config as
 // the draft. The help hides meanwhile (see helpView), since its keys don't
@@ -111,7 +130,8 @@ func (m Model) startTheme() (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// closePicker goes back to browsing. The caller restyles first if needed.
+// closePicker closes either picker and goes back to browsing. The caller
+// restyles first if needed.
 func (m Model) closePicker() Model {
 	m.mode = modeBrowse
 	m.resize()

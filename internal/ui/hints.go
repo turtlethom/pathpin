@@ -63,14 +63,14 @@ func bindingHints(bindings []key.Binding) []hint {
 
 // helpView is the help under the list: one line of the keys that apply now,
 // or with ? bubbles' full help, each line cut to the window. It's empty while
-// the picker is open, since the picker's keys are on the bottom line.
+// a picker is open, since the picker's keys are on the bottom line.
 //
 // pathpin draws this instead of the list because bubbles' help can't cut its
 // line to a narrow window: once even its … doesn't fit, it adds every key left.
 // The width is the window's but for the frame's left padding, so the help line
 // may use the column of margin the list keeps on the right.
 func (m Model) helpView() string {
-	if m.picking() {
+	if m.panelOpen() {
 		return ""
 	}
 	// A style's frame size is its padding, border and margin, left plus right.

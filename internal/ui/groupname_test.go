@@ -136,18 +136,16 @@ func TestRenameGroupErrorsAndUnchanged(t *testing.T) {
 	}
 }
 
-// Clearing the N field shows a muted hint that an empty name ungroups. The m
-// field, which N shares, never shows it.
+// Clearing the N field shows a muted hint that an empty name ungroups. The
+// new-group field (m, then + new group…) never shows it, even right after N.
 func TestUngroupHint(t *testing.T) {
 	m := clearField(pressN(schoolTab(t)))
 	if !strings.Contains(plain(m.View()), "empty: ungroup all") {
 		t.Errorf("an empty N field should hint that it ungroups:\n%s", plain(m.View()))
 	}
-	m, _ = press(m, tea.KeyMsg{Type: tea.KeyEsc})
-	m, _ = press(m, runes("m"))
-	m = clearField(m)
-	if m.mode != modeGroup || strings.Contains(plain(m.View()), "ungroup all") {
-		t.Errorf("the m field should open without N's hint:\n%s", plain(m.View()))
+	m = newGroup(t, esc(m))
+	if strings.Contains(plain(m.View()), "ungroup all") {
+		t.Errorf("the new-group field should open without N's hint:\n%s", plain(m.View()))
 	}
 }
 

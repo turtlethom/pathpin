@@ -4,8 +4,6 @@ import (
 	"strings"
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
-
 	"github.com/turtlethom/pathpin/internal/config"
 )
 
@@ -147,10 +145,7 @@ func TestGroupTagWhileFiltering(t *testing.T) {
 
 // Moving a bookmark to a group with m tags its row on All right away.
 func TestGroupTagAfterMove(t *testing.T) {
-	m := selectLabel(t, groupModel(t), "PATHPIN")
-	m, _ = press(m, runes("m"))
-	m, _ = press(m, runes("School"))
-	m, _ = press(m, tea.KeyMsg{Type: tea.KeyEnter})
+	m := moveTo(t, selectLabel(t, groupModel(t), "PATHPIN"), "School")
 	if got := row(t, m, "PATHPIN"); !strings.HasSuffix(got, " · School") {
 		t.Errorf("want PATHPIN tagged School after the move, got %q", got)
 	}
