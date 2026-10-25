@@ -60,8 +60,8 @@ What happens when you type `pp`, pick a bookmark, and press enter:
 3. **`loadConfig`** finds the config (`config.DefaultPath`) and calls
    `config.LoadOrMigrate`. On the very first run it imports fcd's JSON and
    prints one line about it.
-4. **`warnAboutStyle`** prints a line for each bad theme, color or selection
-   value (the menu falls back for all of them).
+4. **`warnAboutStyle`** prints a line for each bad theme, color, selection,
+   header or tabs value (the menu falls back for all of them).
 5. **`ui.Run`** starts Bubble Tea with `New(cfg, configPath)` on the alternate
    screen. `Init` starts a background check of every bookmark's folder.
 6. Keys go to **`Update`**, which redraws through **`View`** after each one.
@@ -165,7 +165,7 @@ every save replaces the one `.bak` backup.
 `View` stacks these, top to bottom:
 
 ```
- PATHPIN                       ← the list's title (a badge)
+ PATHPIN                       ← the list's title (titleText; withRule for rule)
                                ← blank line            ┐
  All  Config  School  Other    ← tabBar()              │ only with groups
  ─────────────────────────     ← tabRule()             ┘
@@ -182,10 +182,11 @@ every save replaces the one `.bak` backup.
 ```
 
 `resize` gives the list whatever height is left after the help, tabs, picker
-and bottom line, so the whole menu always fits the window. The group picker
-has a row per group, so when they don't fit it scrolls (`groupWindow`),
-leaving the list at its shortest (`minListHeight`) with the highlighted
-bookmark in view.
+and bottom line, so the whole menu always fits the window. When a picker's
+rows don't fit, it scrolls, leaving the list at its shortest (`minListHeight`)
+with the highlighted bookmark in view: `panelRoom` is the room left, and the
+pure `window` function picks the rows in view for both pickers (`groupWindow`,
+`themeWindow`).
 
 The tabs come from `tabs(cfg, groupsOnly)` (`m.tabNames()`). `groupsOnly` is
 `.`'s state: All and Other hidden. It's the menu's own state, like the open
@@ -219,7 +220,11 @@ cursor, filter and size, so closing the page puts the menu back as it was.
 ### Styles and themes
 
 `themes.go` has the palettes (five colors each). `NewStyles` turns a theme plus
-the `[colors]` overrides into `Styles`. The list, the delegate and the text
+the `[colors]` overrides, and `[menu]`'s selection and header, into `Styles`.
+The title and the open tab depend on the header, so `titleText()` and
+`openTab()` draw them: the list gets the title pre-rendered (bracket needs two
+colors in it), and `View` adds rule's line after the list has drawn the title
+line (`withRule`), since the list puts status messages on that line too. The list, the delegate and the text
 fields each keep their own copies of some styles, so `restyle` is the one place
 that updates all of them; the picker calls it on every change to preview.
 
@@ -248,6 +253,7 @@ theme = "nord"
 [menu]
 icons = true
 selection = "bar"
+header = "text"
 ```
 
 - **Location:** `$XDG_CONFIG_HOME/pathpin/config.toml`, else

@@ -54,8 +54,8 @@ func appearanceRows() []pickerRow {
 		color("selected_text", "text on primary", func(c *config.Colors) *string { return &c.SelectedText }),
 		color("error", "errors", func(c *config.Colors) *string { return &c.Error }),
 		{
-			key: "selection", hint: "selected row: block or bar", def: selectBlock,
-			values: func() []string { return []string{"", selectBar} },
+			key: "selection", hint: "block, bar or arrow", def: selectBlock,
+			values: func() []string { return []string{"", selectBar, selectArrow} },
 			get:    func(c *config.Config) string { return c.Menu.Selection },
 			set:    func(c *config.Config, v string) { c.Menu.Selection = v },
 		},
@@ -69,6 +69,12 @@ func appearanceRows() []pickerRow {
 				return ""
 			},
 			set: func(c *config.Config, v string) { c.Menu.Icons = v == "on" },
+		},
+		{
+			key: "header", hint: "title and open tab", def: headerBadge,
+			values: func() []string { return []string{"", headerText, headerBracket, headerRule} },
+			get:    func(c *config.Config) string { return c.Menu.Header },
+			set:    func(c *config.Config, v string) { c.Menu.Header = v },
 		},
 		{
 			// How the menu starts. It doesn't preview: . is the live switch,
@@ -133,7 +139,7 @@ func (m Model) panel() string {
 // the draft. The help hides meanwhile (see helpView), since its keys don't
 // apply.
 func (m Model) startTheme() (tea.Model, tea.Cmd) {
-	m.mode, m.themeRow, m.draft = modeTheme, 0, *m.edit()
+	m.mode, m.themeRow, m.themeTop, m.draft = modeTheme, 0, 0, *m.edit()
 	m.resize() // the list shrinks to make room for the rows (and the help hides)
 	return m, nil
 }
@@ -189,7 +195,15 @@ func (m Model) updateTheme(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m.closePicker(), nil
 	}
+	// Remember where the rows are scrolled to, so they only move when the
+	// cursor reaches an edge.
+	m.themeTop, _, _ = m.themeWindow(len(rows))
 	return m, nil
+}
+
+// themeWindow is the part of the picker's n rows in view (see window).
+func (m Model) themeWindow(n int) (top, w int, scrolls bool) {
+	return window(n, m.panelRoom(), 0, m.themeRow, m.themeTop)
 }
 
 // preview redraws the menu from the draft after row changed.
@@ -303,6 +317,10 @@ func (m Model) pickerView() string {
 		value := arrowL + m.pickerValue(i) + arrowR
 		value += strings.Repeat(" ", max(0, 30-lipgloss.Width(value)))
 		lines = append(lines, marker+key+value+m.styles.muted.Render(row.hint))
+	}
+	if top, w, scrolls := m.themeWindow(len(lines)); scrolls {
+		shown := append([]string{m.moreLine("↑", top, 2)}, lines[top:top+w]...)
+		lines = append(shown, m.moreLine("↓", len(lines)-top-w, 2))
 	}
 	return m.styles.picker.MaxWidth(m.list.Width()).Render(strings.Join(lines, "\n"))
 }

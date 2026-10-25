@@ -34,6 +34,9 @@ type Styles struct {
 	rule    lipgloss.Style         // the line under the tabs
 	picker  lipgloss.Style         // a picker's panel (t, m)
 	picked  lipgloss.Style         // the picker's highlighted row
+
+	header     string         // [menu] header, as one of the header* names
+	headerWord lipgloss.Style // the title and open tab's word when it isn't a block
 }
 
 // The ways to show the selected row, set with [menu] selection. Empty means
@@ -41,13 +44,34 @@ type Styles struct {
 const (
 	selectBlock = "block" // the label is a block of selected_text on primary (fcd's look)
 	selectBar   = "bar"   // just the bar; the label is bold in primary
+	selectArrow = "arrow" // a › where the bar is (like the pickers' cursor); the label as bar's
 )
 
 // KnownSelection reports whether s is a [menu] selection the menu knows, in
 // any case. Empty counts, since it means block; anything else unknown gives
 // block too, and cmd warns about it.
 func KnownSelection(s string) bool {
-	return s == "" || strings.EqualFold(s, selectBlock) || strings.EqualFold(s, selectBar)
+	return s == "" || indexFold([]string{selectBlock, selectBar, selectArrow}, s) >= 0
+}
+
+// The ways to draw the title and the open tab, set with [menu] header. Empty
+// means badge.
+const (
+	headerBadge   = "badge"   // a block of selected_text on primary
+	headerText    = "text"    // bold primary
+	headerBracket = "bracket" // [ PATHPIN ] and [All], the brackets muted
+	headerRule    = "rule"    // bold primary; the title line ends in a muted rule, the open tab underlined
+)
+
+// headerNames are the header styles. A function, not a var, so there's no
+// package-level state.
+func headerNames() []string { return []string{headerBadge, headerText, headerBracket, headerRule} }
+
+// KnownHeader reports whether h is a [menu] header the menu knows, in any
+// case. Empty counts, since it means badge; anything else unknown gives badge
+// too, and cmd warns about it.
+func KnownHeader(h string) bool {
+	return h == "" || indexFold(headerNames(), h) >= 0
 }
 
 // NewStyles builds the menu's styles from the user's theme (default:
@@ -61,9 +85,9 @@ func KnownSelection(s string) bool {
 //   - error: errors on the bottom line.
 //
 // An unknown theme gives terminal, and a value that isn't a color is ignored;
-// cmd warns about both. selection is [menu] selection: bar shows the selected
-// row with just the bar, anything else as a block.
-func NewStyles(c config.Colors, selection string) Styles {
+// cmd warns about both. menu's selection and header pick how the selected row,
+// the title and the open tab look; unknown values give block and badge.
+func NewStyles(c config.Colors, menu config.Menu) Styles {
 	theme, _ := lookupTheme(c.Theme)
 	primary := pick(c.Primary, theme.accent)
 	onPrimary := pick(c.SelectedText, theme.onAccent)
@@ -85,14 +109,22 @@ func NewStyles(c config.Colors, selection string) Styles {
 	// (invisible without a background) or the block would overflow the window
 	// by a column. In bar mode the label is just in the accent color.
 	selected := bar.Foreground(onPrimary).Background(primary).Bold(true).PaddingRight(1)
-	if strings.EqualFold(selection, selectBar) {
+	selectedDesc := bar.Foreground(muted).Underline(true)
+	switch {
+	case strings.EqualFold(menu.Selection, selectBar):
 		selected = bar.Foreground(primary).Bold(true).PaddingRight(1)
+	case strings.EqualFold(menu.Selection, selectArrow):
+		// A border whose left side is ›, so the arrow sits where the bar is,
+		// on the label line only; the path keeps the bar's width as padding.
+		arrow := lipgloss.Border{Left: "›"}
+		selected = bar.Border(arrow, false, false, false, true).Foreground(primary).Bold(true).PaddingRight(1)
+		selectedDesc = plain.Foreground(muted).Underline(true)
 	}
 	item := list.DefaultItemStyles{
 		NormalTitle:   plain.Foreground(text).PaddingRight(1),
 		NormalDesc:    plain.Foreground(muted),
 		SelectedTitle: selected,
-		SelectedDesc:  bar.Foreground(muted).Underline(true),
+		SelectedDesc:  selectedDesc,
 		DimmedTitle:   plain.Foreground(muted).PaddingRight(1), // like NormalTitle, so a tag after it keeps its space
 		DimmedDesc:    plain.Foreground(muted),
 		FilterMatch:   lipgloss.NewStyle().Underline(true),
@@ -103,11 +135,31 @@ func NewStyles(c config.Colors, selection string) Styles {
 	missing.NormalTitle = item.NormalTitle.Foreground(muted)
 	missing.SelectedTitle = item.SelectedTitle.UnsetBackground().Foreground(muted)
 
+	// The title and the open tab: a block (badge), or bold primary with the
+	// same padding, so switching styles moves nothing; rule also underlines
+	// the open tab. bracket draws its brackets in titleText and openTab, where
+	// the padding would be, so it moves nothing either.
+	header := headerBadge
+	if i := indexFold(headerNames(), menu.Header); i >= 0 {
+		header = headerNames()[i]
+	}
+	word := lipgloss.NewStyle().Foreground(primary).Bold(true)
+	title := lipgloss.NewStyle().Foreground(onPrimary).Background(primary).Bold(true).Padding(0, 1) // a badge, like the selected row
+	tabOpen := title
+	switch header {
+	case headerText, headerBracket:
+		title, tabOpen = word.Padding(0, 1), word.Padding(0, 1)
+	case headerRule:
+		title, tabOpen = word.Padding(0, 1), word.Underline(true).Padding(0, 1)
+	}
+
 	return Styles{
+		header:     header,
+		headerWord: word,
 		// No right padding: resize keeps the list a column short of the right
 		// edge, and only the help line may use that column.
 		app:     lipgloss.NewStyle().Padding(1, 0, 0, 1),
-		title:   lipgloss.NewStyle().Foreground(onPrimary).Background(primary).Bold(true).Padding(0, 1), // a badge, like the selected row
+		title:   title,
 		status:  lipgloss.NewStyle().Foreground(muted).Padding(0, 0, 1, 2),
 		empty:   lipgloss.NewStyle().Foreground(muted).Padding(0, 0, 0, 2),
 		filter:  lipgloss.NewStyle().Foreground(primary),
@@ -124,7 +176,7 @@ func NewStyles(c config.Colors, selection string) Styles {
 		// Every tab has the same padding, so switching tabs moves nothing.
 		tabBar:  lipgloss.NewStyle().Padding(0, 0, 0, 1),
 		tab:     lipgloss.NewStyle().Foreground(muted).Padding(0, 1),
-		tabOpen: lipgloss.NewStyle().Foreground(onPrimary).Background(primary).Bold(true).Padding(0, 1),
+		tabOpen: tabOpen,
 		rule:    lipgloss.NewStyle().Foreground(muted),
 		picker:  lipgloss.NewStyle().MarginTop(1), // its › sits where the selected row's bar is
 		picked:  lipgloss.NewStyle().Foreground(primary).Bold(true),
@@ -137,4 +189,22 @@ func pick(set string, fallback lipgloss.TerminalColor) lipgloss.TerminalColor {
 		return lipgloss.Color(set)
 	}
 	return fallback
+}
+
+// titleText is PATHPIN in the header style. (rule's line isn't part of it:
+// View adds it after whatever else is on the title line; see withRule.)
+func (s Styles) titleText() string {
+	if s.header == headerBracket {
+		return s.muted.Render("[") + s.headerWord.Render(menuTitle) + s.muted.Render("]")
+	}
+	return s.title.Render(menuTitle)
+}
+
+// openTab draws the open tab in the header style, as wide as the other tabs
+// (one column each side), so switching tabs moves nothing.
+func (s Styles) openTab(name string) string {
+	if s.header == headerBracket {
+		return s.muted.Render("[") + s.headerWord.Render(name) + s.muted.Render("]")
+	}
+	return s.tabOpen.Render(name)
 }

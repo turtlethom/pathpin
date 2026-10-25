@@ -66,7 +66,7 @@ func (m Model) updateHelp(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m Model) helpPage() string {
 	indent := m.styles.tabBar // the blocks start under the badge's block, like the tabs
 	width := m.width - m.styles.app.GetHorizontalFrameSize() - indent.GetHorizontalFrameSize()
-	badge := m.list.Styles.TitleBar.Render(m.styles.title.Render(menuTitle))
+	badge := m.titleBar()
 
 	// Room for the grid: the window, but for the frame, the badge (with the
 	// blank line under it), the line above the keys and the keys.

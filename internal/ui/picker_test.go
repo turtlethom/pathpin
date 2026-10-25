@@ -16,7 +16,7 @@ import (
 )
 
 // pickerRows are the picker's rows, top to bottom, named as in the TOML.
-var pickerRows = []string{"theme", "primary", "secondary", "tertiary", "selected_text", "error", "selection", "icons", "tabs"}
+var pickerRows = []string{"theme", "primary", "secondary", "tertiary", "selected_text", "error", "selection", "icons", "header", "tabs"}
 
 // colorsModel builds a menu with two bookmarks and these [colors].
 func colorsModel(t *testing.T, c config.Colors) Model {
@@ -197,7 +197,7 @@ func TestThemeRowCyclesAndPreviews(t *testing.T) {
 	if !strings.Contains(pickerLine(t, m, "theme"), names[1]) {
 		t.Errorf("→ should show %s: %q", names[1], pickerLine(t, m, "theme"))
 	}
-	if colorsOf(m.styles) != colorsOf(NewStyles(config.Colors{Theme: names[1]}, "")) {
+	if colorsOf(m.styles) != colorsOf(NewStyles(config.Colors{Theme: names[1]}, config.Menu{})) {
 		t.Errorf("→ should switch the styles to %s", names[1])
 	}
 	m = left(left(m))
@@ -236,7 +236,7 @@ func TestThemePickerEscRestores(t *testing.T) {
 	if saved(m) || m.cfg.Colors != (config.Colors{Theme: "nord"}) {
 		t.Errorf("esc shouldn't save or change the colors, got %+v", m.cfg.Colors)
 	}
-	if colorsOf(m.styles) != colorsOf(NewStyles(m.cfg.Colors, "")) {
+	if colorsOf(m.styles) != colorsOf(NewStyles(m.cfg.Colors, config.Menu{})) {
 		t.Error("esc should restore the saved colors")
 	}
 	_, word, _ := find(t, cells(rawLine(t, m.View(), "PATHPIN")), "PATHPIN")
@@ -351,7 +351,7 @@ func TestThemePickerSaves(t *testing.T) {
 	if cfg.Colors != want || !cfg.Menu.Icons || len(cfg.Bookmarks) != 2 {
 		t.Errorf("want colors %+v saved with icons and 2 bookmarks, got %+v, %+v, %d", want, cfg.Colors, cfg.Menu, len(cfg.Bookmarks))
 	}
-	if m.cfg.Colors != want || colorsOf(m.styles) != colorsOf(NewStyles(want, "")) {
+	if m.cfg.Colors != want || colorsOf(m.styles) != colorsOf(NewStyles(want, config.Menu{})) {
 		t.Error("the menu should keep the saved colors")
 	}
 	if !strings.Contains(plain(m.View()), "Appearance saved") {
@@ -516,11 +516,11 @@ func hasBlock(m Model) bool {
 	return !none
 }
 
-// The selection row shows block (the default) or bar, with a hint. ←→ cycle
-// the two (wrapping), the menu previews the change, and d resets to block.
+// The selection row shows block (the default), bar or arrow, with a hint. ←→
+// cycle them (wrapping), the menu previews the change, and d resets to block.
 func TestPickerSelectionRow(t *testing.T) {
 	m := openPicker(t, colorsModel(t, config.Colors{}))
-	if line := pickerLine(t, m, "selection"); !strings.Contains(line, "block") || !strings.Contains(line, "selected row: block or bar") {
+	if line := pickerLine(t, m, "selection"); !strings.Contains(line, "block") || !strings.Contains(line, "block, bar or arrow") {
 		t.Errorf("want block and the hint: %q", line)
 	}
 	m = right(toRow(t, m, "selection"))
@@ -528,12 +528,16 @@ func TestPickerSelectionRow(t *testing.T) {
 		t.Errorf("→ should show and preview bar: %q, block %v", line, hasBlock(m))
 	}
 	m = right(m)
+	if line := pickerLine(t, m, "selection"); !strings.Contains(line, "arrow") || hasBlock(m) || !strings.Contains(plain(m.View()), "› NVIM") {
+		t.Errorf("→ from bar should show and preview arrow: %q, block %v", line, hasBlock(m))
+	}
+	m = right(m)
 	if line := pickerLine(t, m, "selection"); !strings.Contains(line, "block") || !hasBlock(m) {
-		t.Errorf("→ from bar should wrap to block: %q, block %v", line, hasBlock(m))
+		t.Errorf("→ from arrow should wrap to block: %q, block %v", line, hasBlock(m))
 	}
 	m = left(m)
-	if line := pickerLine(t, m, "selection"); !strings.Contains(line, "bar") {
-		t.Errorf("← from block should wrap to bar: %q", line)
+	if line := pickerLine(t, m, "selection"); !strings.Contains(line, "arrow") {
+		t.Errorf("← from block should wrap to arrow: %q", line)
 	}
 	m, _ = press(m, runes("d"))
 	if line := pickerLine(t, m, "selection"); !strings.Contains(line, "block") || !hasBlock(m) {

@@ -167,7 +167,7 @@ func TestEmptyState(t *testing.T) {
 }
 
 func TestNewStyles(t *testing.T) {
-	def := NewStyles(config.Colors{}, "")
+	def := NewStyles(config.Colors{}, config.Menu{})
 	if got := def.item.SelectedTitle.GetBackground(); got != lipgloss.Color("6") {
 		t.Errorf("default primary: got %v, want ANSI 6", got)
 	}
@@ -175,7 +175,7 @@ func TestNewStyles(t *testing.T) {
 		t.Errorf("default tertiary: got %v, want ANSI 8", got)
 	}
 
-	set := NewStyles(config.Colors{Primary: "#56B6C2", Tertiary: "#777777"}, "")
+	set := NewStyles(config.Colors{Primary: "#56B6C2", Tertiary: "#777777"}, config.Menu{})
 	if got := set.item.SelectedTitle.GetBackground(); got != lipgloss.Color("#56B6C2") {
 		t.Errorf("configured primary: got %v", got)
 	}
@@ -188,7 +188,7 @@ func TestNewStyles(t *testing.T) {
 // the primary color, and the path below it is underlined in the tertiary
 // color. Unselected rows keep the plain look.
 func TestSelectedRowStyle(t *testing.T) {
-	s := NewStyles(config.Colors{Primary: "#56B6C2", Tertiary: "#777777"}, "")
+	s := NewStyles(config.Colors{Primary: "#56B6C2", Tertiary: "#777777"}, config.Menu{})
 
 	title := s.item.SelectedTitle
 	if title.GetBackground() != lipgloss.Color("#56B6C2") || title.GetForeground() != lipgloss.Color("15") || !title.GetBold() {
@@ -229,9 +229,9 @@ func TestSelectedRowStyle(t *testing.T) {
 // rows look the same in both modes.
 func TestSelectionStyle(t *testing.T) {
 	c := config.Colors{Primary: "#56B6C2", Tertiary: "#777777"}
-	block := NewStyles(c, "")
+	block := NewStyles(c, config.Menu{})
 	for _, sel := range []string{"bar", "BAR"} {
-		s := NewStyles(c, sel)
+		s := NewStyles(c, config.Menu{Selection: sel})
 		title := s.item.SelectedTitle
 		if _, ok := title.GetBackground().(lipgloss.NoColor); !ok {
 			t.Errorf("%s: the selected label should have no background, got %v", sel, title.GetBackground())
@@ -257,7 +257,7 @@ func TestSelectionStyle(t *testing.T) {
 		}
 	}
 	for _, sel := range []string{"", "block", "Block", "bars"} {
-		if got := NewStyles(c, sel).item.SelectedTitle.GetBackground(); got != lipgloss.Color("#56B6C2") {
+		if got := NewStyles(c, config.Menu{Selection: sel}).item.SelectedTitle.GetBackground(); got != lipgloss.Color("#56B6C2") {
 			t.Errorf("selection %q: want the block (primary background), got %v", sel, got)
 		}
 	}
@@ -265,7 +265,7 @@ func TestSelectionStyle(t *testing.T) {
 
 // KnownSelection accepts "" (the default) and the two names, in any case.
 func TestKnownSelection(t *testing.T) {
-	for sel, want := range map[string]bool{"": true, "block": true, "Bar": true, "BLOCK": true, "bars": false, "underline": false} {
+	for sel, want := range map[string]bool{"": true, "block": true, "Bar": true, "BLOCK": true, "arrow": true, "Arrow": true, "bars": false, "underline": false} {
 		if got := KnownSelection(sel); got != want {
 			t.Errorf("KnownSelection(%q) = %v, want %v", sel, got, want)
 		}

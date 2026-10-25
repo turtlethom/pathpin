@@ -86,33 +86,39 @@ func (m Model) updateGroupPick(msg tea.Msg) (tea.Model, tea.Cmd) {
 // many anyway, and the menu would be taller than the window.
 const minListHeight = 7
 
-// groupRoom is how many lines the group picker may use: what the window has
-// left after the list at its shortest and the rest of the menu (as resize
-// counts them; the help hides while picking).
-func (m Model) groupRoom() int {
+// panelRoom is how many lines a picker may use: what the window has left
+// after the list at its shortest and the rest of the menu (as resize counts
+// them; the help hides while picking).
+func (m Model) panelRoom() int {
 	_, v := m.styles.app.GetFrameSize()
 	room := m.height - v - minListHeight - 1 - 1 // the bottom line, and the blank line above the picker
 	if m.tabNames() != nil {
 		room -= 3 // a blank line, the tab bar and its rule
 	}
-	return max(room, 4) // a group between the two scroll lines, and + new group…
+	return max(room, 4) // a row between the two scroll lines, and + new group…
 }
 
-// groupWindow is the part of the n groups in view: w of them, from top. When
-// they don't all fit, scrolls is true: the rows scroll to keep the cursor in
-// view, and two lines around them say how many are hidden. + new group…
-// always shows, under them.
-func (m Model) groupWindow(n int) (top, w int, scrolls bool) {
-	room := m.groupRoom()
-	if n+1 <= room {
+// window is the part of n rows in view, in room lines with pinned more
+// lines always under them: w rows from top. When they don't all fit, scrolls
+// is true: two lines around the rows say how many are hidden, and top moves
+// only as far as keeps the cursor's row in view (a cursor past the rows, on a
+// pinned line, keeps top). Both pickers use it; it only does arithmetic, so
+// it's easy to test and share.
+func window(n, room, pinned, cursor, top int) (int, int, bool) {
+	if n+pinned <= room {
 		return 0, n, false
 	}
-	w = room - 3 // the two scroll lines and + new group…
-	top = m.groupTop
-	if m.groupRow < n { // on a group, not + new group…
-		top = max(min(top, m.groupRow), m.groupRow-w+1)
+	w := max(room-pinned-2, 1) // the two scroll lines
+	if cursor < n {
+		top = max(min(top, cursor), cursor-w+1)
 	}
 	return min(max(top, 0), n-w), w, true
+}
+
+// groupWindow is the part of the n groups in view (see window). + new group…
+// is pinned under them, so it always shows.
+func (m Model) groupWindow(n int) (top, w int, scrolls bool) {
+	return window(n, m.panelRoom(), 1, m.groupRow, m.groupTop)
 }
 
 // startNewGroup opens the new-group field, empty. N shares the field, so its
@@ -190,13 +196,13 @@ func (m Model) groupPickerView() string {
 	top, w, scrolls := m.groupWindow(len(names))
 	var lines []string
 	if scrolls {
-		lines = append(lines, m.moreLine("↑", top))
+		lines = append(lines, m.moreLine("↑", top, 4))
 	}
 	for i := top; i < top+w; i++ {
 		lines = append(lines, m.groupLine(i, names[i], names[i] == current))
 	}
 	if scrolls {
-		lines = append(lines, m.moreLine("↓", len(names)-top-w))
+		lines = append(lines, m.moreLine("↓", len(names)-top-w, 4))
 	}
 	lines = append(lines, m.groupLine(len(names), newGroupItem, false))
 	return m.styles.picker.MaxWidth(m.list.Width()).Render(strings.Join(lines, "\n"))
@@ -219,12 +225,12 @@ func (m Model) groupLine(i int, name string, marked bool) string {
 	return cursor + mark + style.Render(name)
 }
 
-// moreLine says how many groups are hidden past one end of the picker, lined
-// up with the names. It's blank when none are, so the picker's height stays
-// the same while it scrolls.
-func (m Model) moreLine(arrow string, hidden int) string {
+// moreLine says how many rows are hidden past one end of a picker, indented
+// to line up with its names. It's blank when none are, so the picker's height
+// stays the same while it scrolls.
+func (m Model) moreLine(arrow string, hidden, indent int) string {
 	if hidden == 0 {
 		return ""
 	}
-	return m.styles.muted.Render(fmt.Sprintf("    %s %d more", arrow, hidden))
+	return m.styles.muted.Render(fmt.Sprintf("%s%s %d more", strings.Repeat(" ", indent), arrow, hidden))
 }

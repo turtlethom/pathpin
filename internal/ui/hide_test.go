@@ -34,7 +34,13 @@ func statusText(t *testing.T, m Model) string {
 // these [menu] lines, as pathpin does at start.
 func startedWith(t *testing.T, menu string) Model {
 	t.Helper()
-	m := groupModel(t)
+	return restartedWith(t, groupModel(t), menu)
+}
+
+// restartedWith builds m's menu again from its config file plus these
+// [menu] lines, in nord (like the test models), at 80x40.
+func restartedWith(t *testing.T, m Model, menu string) Model {
+	t.Helper()
 	f, err := os.OpenFile(m.configPath, os.O_APPEND|os.O_WRONLY, 0)
 	if err != nil {
 		t.Fatal(err)

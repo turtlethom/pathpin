@@ -67,8 +67,9 @@ func rawLine(t *testing.T, view, s string) string {
 // cell is one visible character of a rendered line and the colors it's drawn
 // in ("" for the terminal's default).
 type cell struct {
-	r      rune
-	fg, bg string
+	r           rune
+	fg, bg      string
+	bold, under bool
 }
 
 // cells reads the escape codes in a rendered line and returns each visible
@@ -77,13 +78,22 @@ type cell struct {
 func cells(raw string) []cell {
 	var out []cell
 	var fgc, bgc string
+	var bold, under bool
 	for len(raw) > 0 {
 		if loc := escape.FindStringIndex(raw); loc != nil && loc[0] == 0 {
 			params := strings.Split(strings.TrimSuffix(strings.TrimPrefix(raw[:loc[1]], "\x1b["), "m"), ";")
 			for i := 0; i < len(params); i++ {
 				switch p := params[i]; {
 				case p == "" || p == "0":
-					fgc, bgc = "", ""
+					fgc, bgc, bold, under = "", "", false, false
+				case p == "1":
+					bold = true
+				case p == "22":
+					bold = false
+				case p == "4" || strings.HasPrefix(p, "4:"):
+					under = p != "4:0"
+				case p == "24":
+					under = false
 				case p == "39":
 					fgc = ""
 				case p == "49":
@@ -104,7 +114,7 @@ func cells(raw string) []cell {
 			continue
 		}
 		r, size := utf8.DecodeRuneInString(raw)
-		out = append(out, cell{r, fgc, bgc})
+		out = append(out, cell{r, fgc, bgc, bold, under})
 		raw = raw[size:]
 	}
 	return out

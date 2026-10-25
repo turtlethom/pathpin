@@ -93,9 +93,10 @@ type Model struct {
 	groupsOnly bool
 	// themeRow is the appearance picker's highlighted row, and draft the copy
 	// of the config it shows; m.cfg stays as saved until enter there. A value,
-	// not a pointer, so each Model copy has its own.
-	themeRow int
-	draft    config.Config
+	// not a pointer, so each Model copy has its own. themeTop is the first row
+	// in view when they don't all fit (see themeWindow).
+	themeRow, themeTop int
+	draft              config.Config
 	// groupRow is the group picker's highlighted row: a group from
 	// m.cfg.Groups(), or the + new group… row after them. groupTop is the
 	// first group in view when they don't all fit (see groupWindow).
@@ -125,8 +126,7 @@ func New(cfg *config.Config, configPath string) Model {
 	if groupsOnly {
 		tab = cfg.Groups()[0]
 	}
-	l := list.New(itemsFrom(cfg, tab, gone), delegate{}, 0, 0) // restyle sets the real delegate
-	l.Title = menuTitle
+	l := list.New(itemsFrom(cfg, tab, gone), delegate{}, 0, 0) // restyle sets the real delegate and the title
 	// One column less than the list's default, so the badge's block lines up
 	// with the selected row's.
 	l.Styles.TitleBar = l.Styles.TitleBar.PaddingLeft(1)
@@ -153,7 +153,9 @@ func New(cfg *config.Config, configPath string) Model {
 	return m
 }
 
-// restyle draws the menu in cfg's colors and [menu] selection. New calls it
+// restyle draws the menu in cfg's colors and [menu] selection and header (the
+// list's title is drawn here too, pre-rendered, since bracket needs two
+// colors in it). New calls it
 // with the saved config, and the appearance picker with its draft on every
 // change.
 //
@@ -161,13 +163,16 @@ func New(cfg *config.Config, configPath string) Model {
 // copies (title, status bar, filter), the delegate draws the rows, and each
 // text field styles its prompt. So all of them are set here, in one place.
 func (m *Model) restyle(cfg *config.Config) {
-	s := NewStyles(cfg.Colors, cfg.Menu.Selection)
+	s := NewStyles(cfg.Colors, cfg.Menu)
 	m.styles = s
 
 	d := delegate{DefaultDelegate: list.NewDefaultDelegate(), missing: s.missing, pathEnd: s.pathEnd, tag: s.muted}
 	d.Styles = s.item
 	m.list.SetDelegate(d)
-	m.list.Styles.Title = s.title
+	// The title is drawn here, not by the list's title style, since bracket
+	// needs two colors in it.
+	m.list.Title = s.titleText()
+	m.list.Styles.Title = lipgloss.NewStyle()
 	m.list.Styles.StatusBar = s.status
 	m.list.Styles.StatusEmpty = s.status
 	m.list.FilterInput.PromptStyle = s.filter
@@ -1006,6 +1011,9 @@ func (m Model) View() string {
 	// field while typing), after a blank line; the list's title padding gives
 	// the blank line below them. They're drawn here, not in the list's title,
 	// because the list cuts its title to the window width as one line.
+	if title, rest, ok := strings.Cut(body, "\n"); ok {
+		body = m.withRule(title) + "\n" + rest
+	}
 	if bar := m.tabBar(); bar != "" {
 		if title, rest, ok := strings.Cut(body, "\n"); ok {
 			body = title + "\n\n" + bar + "\n" + m.tabRule() + "\n" + rest
@@ -1017,7 +1025,7 @@ func (m Model) View() string {
 	if len(m.list.Items()) == 0 {
 		// Same title bar as the list draws, so the title doesn't jump when it
 		// empties. No help: the message says what to do.
-		body = m.list.Styles.TitleBar.Render(m.styles.title.Render(menuTitle)) + "\n" + m.styles.empty.Render(emptyMessage) + "\n"
+		body = m.titleBar() + "\n" + m.styles.empty.Render(emptyMessage) + "\n"
 	}
 	if m.panelOpen() {
 		// The empty menu's body already ends its last line; the picker's
@@ -1027,7 +1035,32 @@ func (m Model) View() string {
 	return m.styles.app.Render(body + "\n" + m.bottomLine())
 }
 
-// tabBar draws the tabs with the open one as a block like the title badge, or
+// titleBar is the title as the list draws it (its title bar's padding, and
+// the blank line under it), for the screens the list doesn't draw: the empty
+// menu and the ? page.
+func (m Model) titleBar() string {
+	line, rest, _ := strings.Cut(m.list.Styles.TitleBar.Render(m.styles.titleText()), "\n")
+	return m.withRule(line) + "\n" + rest
+}
+
+// withRule ends a title line with the rule header's line, out to the list's
+// right edge (where the tab rule ends), after whatever else is on it: the
+// list draws status messages on the title line, so a rule in the title
+// itself would push them off the screen. While a filter is typed, the title
+// line is the filter field, and gets no rule.
+func (m Model) withRule(line string) string {
+	if m.styles.header != headerRule || m.list.FilterState() == list.Filtering {
+		return line
+	}
+	line = strings.TrimRight(line, " ") // the list pads its title line out
+	n := m.list.Width() - lipgloss.Width(line) - 1
+	if n <= 0 {
+		return line
+	}
+	return line + " " + m.styles.rule.Render(strings.Repeat("─", n))
+}
+
+// tabBar draws the tabs with the open one in the header style (openTab), or
 // "" when there are no groups. It's cut to the list's width if there are many.
 func (m Model) tabBar() string {
 	names := m.tabNames()
@@ -1036,11 +1069,11 @@ func (m Model) tabBar() string {
 	}
 	parts := make([]string, len(names))
 	for i, n := range names {
-		style := m.styles.tab
 		if strings.EqualFold(n, m.tab) {
-			style = m.styles.tabOpen
+			parts[i] = m.styles.openTab(n)
+		} else {
+			parts[i] = m.styles.tab.Render(n)
 		}
-		parts[i] = style.Render(n)
 	}
 	bar := strings.Join(parts, " ")
 	// While All and Other are hidden, how many bookmarks are out of view,

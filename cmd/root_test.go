@@ -467,7 +467,7 @@ func TestUnknownSelectionWarns(t *testing.T) {
 	if err != nil || !opened {
 		t.Fatalf("an unknown selection should not stop the menu (err %v, opened %v)", err, opened)
 	}
-	want := `[menu] selection = "bars" is not block or bar, using block`
+	want := `[menu] selection = "bars" is not block, bar or arrow, using block`
 	if !strings.Contains(stderr, want) || strings.Count(stderr, "\n") != 1 {
 		t.Errorf("want one line %q, got %q", want, stderr)
 	}
@@ -475,11 +475,38 @@ func TestUnknownSelectionWarns(t *testing.T) {
 		t.Errorf("pathpin notes: want no warning, got err %v, stderr %q", err, stderr)
 	}
 
-	for _, ok := range []string{"bar", "Block", ""} {
+	for _, ok := range []string{"bar", "Block", "arrow", ""} {
 		e.withColors(t, fmt.Sprintf("[menu]\nselection = %q\n", ok))
 		_, stderr, err := e.run(t, func(*config.Config, string) (string, error) { return "", nil })
 		if err != nil || stderr != "" {
 			t.Errorf("selection %q should not warn, got err %v, stderr %q", ok, err, stderr)
+		}
+	}
+}
+
+// An unknown [menu] header gets one warning line when the menu opens, like an
+// unknown selection, and the menu still opens (with the badge). Known values,
+// in any case, never warn.
+func TestUnknownHeaderWarns(t *testing.T) {
+	e := newRootEnv(t)
+	e.withColors(t, "[menu]\nheader = \"banner\"\n")
+	opened := false
+	_, stderr, err := e.run(t, func(*config.Config, string) (string, error) {
+		opened = true
+		return "", nil
+	})
+	if err != nil || !opened {
+		t.Fatalf("an unknown header should not stop the menu (err %v, opened %v)", err, opened)
+	}
+	want := `[menu] header = "banner" is not badge, text, bracket or rule, using badge`
+	if !strings.Contains(stderr, want) || strings.Count(stderr, "\n") != 1 {
+		t.Errorf("want one line %q, got %q", want, stderr)
+	}
+	for _, ok := range []string{"text", "Bracket", "rule", "badge", ""} {
+		e.withColors(t, fmt.Sprintf("[menu]\nheader = %q\n", ok))
+		_, stderr, err := e.run(t, func(*config.Config, string) (string, error) { return "", nil })
+		if err != nil || stderr != "" {
+			t.Errorf("header %q should not warn, got err %v, stderr %q", ok, err, stderr)
 		}
 	}
 }

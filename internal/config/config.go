@@ -63,7 +63,8 @@ type Colors struct {
 // Menu holds the menu's display options. Unset, each keeps the default look.
 type Menu struct {
 	Icons     bool   `toml:"icons,omitempty"`     // Nerd Font icons before labels
-	Selection string `toml:"selection,omitempty"` // the selected row: "block" (default) or "bar"
+	Selection string `toml:"selection,omitempty"` // the selected row: "block" (default), "bar" or "arrow"
+	Header    string `toml:"header,omitempty"`    // the title and open tab: "badge" (default), "text", "bracket" or "rule"
 	Tabs      string `toml:"tabs,omitempty"`      // how the menu starts: "all" (default), or "groups" with All and Other hidden
 }
 
