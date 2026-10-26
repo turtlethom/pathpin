@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/turtlethom/pathpin/internal/config"
+	"github.com/turtlethom/pathpin/v2/internal/config"
 )
 
 // rawRow is the rendered label line of the row with this label (the last line

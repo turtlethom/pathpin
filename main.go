@@ -1,7 +1,7 @@
 // Command pathpin is a bookmark-first interactive directory navigator.
 package main
 
-import "github.com/turtlethom/pathpin/cmd"
+import "github.com/turtlethom/pathpin/v2/cmd"
 
 // version is set when GoReleaser builds a release: -ldflags "-X main.version=2.0.0".
 // It lives in main so that flag doesn't name the module path, which changes

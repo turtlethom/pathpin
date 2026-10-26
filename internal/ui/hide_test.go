@@ -9,7 +9,7 @@ import (
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/turtlethom/pathpin/internal/config"
+	"github.com/turtlethom/pathpin/v2/internal/config"
 )
 
 // pressDot presses . (hide or show All and Other).

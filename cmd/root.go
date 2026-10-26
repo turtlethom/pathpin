@@ -24,9 +24,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/turtlethom/pathpin/internal/config"
-	"github.com/turtlethom/pathpin/internal/shell"
-	"github.com/turtlethom/pathpin/internal/ui"
+	"github.com/turtlethom/pathpin/v2/internal/config"
+	"github.com/turtlethom/pathpin/v2/internal/shell"
+	"github.com/turtlethom/pathpin/v2/internal/ui"
 )
 
 // menuFunc shows the menu and returns the chosen directory, or "" on quit.

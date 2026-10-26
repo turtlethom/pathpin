@@ -11,9 +11,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/turtlethom/pathpin/internal/config"
-	"github.com/turtlethom/pathpin/internal/shell"
-	"github.com/turtlethom/pathpin/internal/ui"
+	"github.com/turtlethom/pathpin/v2/internal/config"
+	"github.com/turtlethom/pathpin/v2/internal/shell"
+	"github.com/turtlethom/pathpin/v2/internal/ui"
 )
 
 // rootEnv points pathpin at a fresh $HOME and sets up a cd file the way the

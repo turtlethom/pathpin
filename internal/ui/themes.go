@@ -7,7 +7,7 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/turtlethom/pathpin/internal/config"
+	"github.com/turtlethom/pathpin/v2/internal/config"
 )
 
 // palette is the five colors a theme decides. lipgloss.TerminalColor is an

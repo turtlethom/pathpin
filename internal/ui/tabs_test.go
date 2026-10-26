@@ -11,7 +11,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/turtlethom/pathpin/internal/config"
+	"github.com/turtlethom/pathpin/v2/internal/config"
 )
 
 // groupModel builds a menu (in nord, so colors are hex) over six bookmarks in

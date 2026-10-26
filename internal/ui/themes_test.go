@@ -8,7 +8,7 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/turtlethom/pathpin/internal/config"
+	"github.com/turtlethom/pathpin/v2/internal/config"
 )
 
 // The colors a theme decides, read back from the styles built for it.

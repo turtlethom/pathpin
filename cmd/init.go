@@ -5,7 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/turtlethom/pathpin/internal/shell"
+	"github.com/turtlethom/pathpin/v2/internal/shell"
 )
 
 // newInitCmd builds `pathpin init <shell> [--cmd name]`, which prints the

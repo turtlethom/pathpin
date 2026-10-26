@@ -1,4 +1,4 @@
-module github.com/turtlethom/pathpin
+module github.com/turtlethom/pathpin/v2
 
 go 1.25.4
 

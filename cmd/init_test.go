@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/turtlethom/pathpin/internal/shell"
+	"github.com/turtlethom/pathpin/v2/internal/shell"
 )
 
 func runPathpin(t *testing.T, args ...string) (string, error) {

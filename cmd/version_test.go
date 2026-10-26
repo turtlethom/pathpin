@@ -5,7 +5,7 @@ import (
 	"runtime/debug"
 	"testing"
 
-	"github.com/turtlethom/pathpin/internal/shell"
+	"github.com/turtlethom/pathpin/v2/internal/shell"
 )
 
 // buildInfo fakes debug.ReadBuildInfo with this main module version.
@@ -27,8 +27,8 @@ func TestVersionString(t *testing.T) {
 		{"GoReleaser's stamp wins", "2.0.0", buildInfo("v1.9.0"), "2.0.0"},
 		{"a stamped v is dropped", "v2.0.0", noBuildInfo, "2.0.0"},
 		{"go install @v2.0.0", "", buildInfo("v2.0.0"), "2.0.0"},
-		{"local go build", "", buildInfo("v0.0.0-20261025174224-32dc54d89a2d+dirty"),
-			"0.0.0-20261025174224-32dc54d89a2d+dirty"},
+		{"local go build", "", buildInfo("v2.0.0-20261026221247-191683cea740+dirty"),
+			"2.0.0-20261026221247-191683cea740+dirty"},
 		{"go run or a build outside Git", "", buildInfo("(devel)"), "dev"},
 		{"empty build info", "", buildInfo(""), "dev"},
 		{"no build info", "", noBuildInfo, "dev"},
