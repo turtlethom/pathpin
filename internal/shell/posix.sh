@@ -1,5 +1,6 @@
 # pathpin shell integration for bash and zsh.
-# Add to ~/.bashrc or ~/.zshrc:  eval "$(pathpin init bash)"   (or: pathpin init zsh)
+# Add to ~/.bashrc (macOS: ~/.bash_profile) or ~/.zshrc ($ZDOTDIR/.zshrc if set):
+#   eval "$(pathpin init bash)"   (or: pathpin init zsh)
 # Pick your own command name with --cmd:  eval "$(pathpin init bash --cmd pp)"
 #
 # How it works: the function runs the real binary with PATHPIN_CD_FILE set to a

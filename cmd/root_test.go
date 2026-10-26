@@ -758,8 +758,22 @@ func TestLsHelpText(t *testing.T) {
 			t.Fatalf("help has control character %q:\n%s", r, stdout)
 		}
 	}
-	if !strings.Contains(stdout, `while IFS=$'\t' read -r label path group`) {
+	// Not "path": zsh ties it to $PATH, so the loop would empty PATH.
+	if !strings.Contains(stdout, `while IFS=$'\t' read -r label dir group`) {
 		t.Errorf("want the read example:\n%s", stdout)
+	}
+}
+
+// init --help names the same startup files as the setup hint.
+func TestInitHelpNamesStartupFiles(t *testing.T) {
+	out, err := runPathpin(t, "init", "--help")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"~/.bashrc", "~/.bash_profile", "~/.zshrc", "$ZDOTDIR/.zshrc", "~/.config/fish/config.fish"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("init --help should name %s:\n%s", want, out)
+		}
 	}
 }
 

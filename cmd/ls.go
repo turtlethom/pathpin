@@ -18,7 +18,7 @@ func newLsCmd(name string) *cobra.Command {
 		Long: fmt.Sprintf(`List bookmarks. In a terminal, they're listed under their groups, paths show ~,
 and missing folders are marked. Piped, each line is LABEL<tab>/absolute/path<tab>GROUP
 (the group is empty if there's none), so '%s ls | cut -f2' gives paths, and a
-script can read all three with: while IFS=$'\t' read -r label path group`, name),
+script can read all three with: while IFS=$'\t' read -r label dir group`, name),
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, _, err := loadConfig(cmd)

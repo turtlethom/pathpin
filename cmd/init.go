@@ -19,9 +19,9 @@ func newInitCmd() *cobra.Command {
 		Long: `Print the shell function and completions that let pathpin change your
 shell's directory. Add one line to your shell config:
 
-  bash   ~/.bashrc                    eval "$(pathpin init bash)"
-  zsh    ~/.zshrc                     eval "$(pathpin init zsh)"
-  fish   ~/.config/fish/config.fish   pathpin init fish | source
+  bash   ~/.bashrc (macOS: ~/.bash_profile)   eval "$(pathpin init bash)"
+  zsh    ~/.zshrc (or $ZDOTDIR/.zshrc)        eval "$(pathpin init zsh)"
+  fish   ~/.config/fish/config.fish           pathpin init fish | source
 
 The command is called pathpin unless you pick a name with --cmd, for example
 eval "$(pathpin init bash --cmd pp)". The function shadows any command with
