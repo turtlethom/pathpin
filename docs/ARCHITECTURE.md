@@ -19,7 +19,7 @@ through a temp file.
       │
       ▼
  pathpin binary
-   main.go ──► cmd.Execute()                     (cmd/root.go)
+   main.go ──► cmd.Execute(version)              (cmd/root.go)
                  │ loadConfig: config.LoadOrMigrate   (internal/config)
                  ├─ `pathpin`         ──► ui.Run: the menu   (internal/ui)
                  ├─ `pathpin <label>` ──► jump
@@ -39,7 +39,7 @@ goes through stdout unless no wrapper is set up (then it's printed, so
 
 | Package | What it does | Knows about |
 |---|---|---|
-| `main.go` | Calls `cmd.Execute()`. Nothing else, so everything is testable. | cmd |
+| `main.go` | Holds `version` (stamped by release builds with `-X main.version=...`) and calls `cmd.Execute(version)`. Nothing else, so everything is testable. | cmd |
 | `cmd/` | The command line (Cobra): the root command (menu or jump), `add`, `ls`, `init`. | config, shell, ui |
 | `internal/config/` | The TOML file: types, load, save, fcd migration, and every bookmark/group rule (`Add`, `SetGroup`, `Move`, ...). | nothing of pathpin's |
 | `internal/shell/` | The wrapper scripts and the cd-file handoff. | nothing of pathpin's |
@@ -55,8 +55,9 @@ What happens when you type `pp`, pick a bookmark, and press enter:
 
 1. **Shell:** the `pp` function makes a temp file and runs
    `PATHPIN_CD_FILE=<tmp> PATHPIN_CMD=pp command pathpin`.
-2. **`cmd.Execute`** builds the command tree (`newRootCmd`) and runs it. With no
-   arguments, the root's `RunE` runs.
+2. **`cmd.Execute`** builds the command tree (`NewRootCmd`, which also sets the
+   version for `--version` with `versionString`: the stamped one, else Go's build
+   info, else `dev`) and runs it. With no arguments, the root's `RunE` runs.
 3. **`loadConfig`** finds the config (`config.DefaultPath`) and calls
    `config.LoadOrMigrate`. On the very first run it imports fcd's JSON and
    prints one line about it.

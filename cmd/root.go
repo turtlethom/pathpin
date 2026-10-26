@@ -18,6 +18,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -31,9 +32,13 @@ import (
 // Tests pass a fake, since the real menu needs a terminal.
 type menuFunc func(cfg *config.Config, configPath string) (string, error)
 
-// NewRootCmd builds the pathpin command tree.
-func NewRootCmd() *cobra.Command {
-	return newRootCmd(ui.Run)
+// NewRootCmd builds the pathpin command tree. version is what the release
+// build stamped, or "" (see versionString).
+func NewRootCmd(version string) *cobra.Command {
+	root := newRootCmd(ui.Run)
+	// Cobra adds --version and -v only when Version isn't empty.
+	root.Version = versionString(version, debug.ReadBuildInfo)
+	return root
 }
 
 // newRootCmd builds the tree with menu as the interactive menu. Passing the
@@ -72,18 +77,38 @@ Set up your shell first: see 'pathpin init --help'.`, name),
 	// `pathpin init <shell>` prints completions along with the wrapper, so the
 	// default completion command is only needed for debugging.
 	root.CompletionOptions.HiddenDefaultCmd = true
+	// The binary's name, not the --cmd name: bug reports should name what
+	// people install.
+	root.SetVersionTemplate("pathpin {{.Version}}\n")
 
 	root.AddCommand(newInitCmd(), newAddCmd(), newLsCmd(name))
 	return root
 }
 
 // Execute runs pathpin and prints any error as "<name>: <err>", using the
-// name the user types.
-func Execute() {
-	if err := NewRootCmd().Execute(); err != nil {
+// name the user types. version is what the release build stamped, or "".
+func Execute(version string) {
+	if err := NewRootCmd(version).Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", shell.CmdName(), err)
 		os.Exit(1)
 	}
+}
+
+// versionString picks what --version shows: the stamped version, else the
+// one Go records in the binary (v2.0.0 from `go install ...@v2.0.0`, a
+// commit's pseudo-version from `go build`), else "dev". The leading v is
+// dropped, so every source reads the same. buildInfo is debug.ReadBuildInfo,
+// passed in so tests can fake it.
+func versionString(stamped string, buildInfo func() (*debug.BuildInfo, bool)) string {
+	if stamped != "" {
+		return strings.TrimPrefix(stamped, "v")
+	}
+	// "(devel)" is what Go records when it knows no version (go run, or a
+	// build outside a Git checkout).
+	if info, ok := buildInfo(); ok && info.Main.Version != "" && info.Main.Version != "(devel)" {
+		return strings.TrimPrefix(info.Main.Version, "v")
+	}
+	return "dev"
 }
 
 // loadConfig loads pathpin's config, migrating fcd's on the first run of any

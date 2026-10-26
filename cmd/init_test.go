@@ -14,7 +14,7 @@ import (
 
 func runPathpin(t *testing.T, args ...string) (string, error) {
 	t.Helper()
-	root := NewRootCmd()
+	root := NewRootCmd("")
 	var out bytes.Buffer
 	root.SetOut(&out)
 	root.SetErr(&out)
