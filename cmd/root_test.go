@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -780,5 +781,59 @@ func TestAddGroupCompletionKeepsTypedCase(t *testing.T) {
 	stdout, _, _ := e.run(t, noMenu(t), "__complete", "add", "--group", "zz")
 	if strings.Contains(stdout, "School") || strings.Contains(stdout, "Config") {
 		t.Errorf("typed zz: want nothing offered, got %q", stdout)
+	}
+}
+
+// The hint names the file each shell reads at startup, following $ZDOTDIR
+// (zsh) and $XDG_CONFIG_HOME (fish) when they're absolute paths. Bash on macOS
+// starts as a login shell, which reads ~/.bash_profile instead of ~/.bashrc.
+func TestIntegrationHint(t *testing.T) {
+	e := newRootEnv(t)
+	bashrc := "~/.bashrc"
+	if runtime.GOOS == "darwin" {
+		bashrc = "~/.bash_profile"
+	}
+	for _, tc := range []struct {
+		shell, zdotdir, xdg, want string
+	}{
+		{"/bin/bash", "", "", `Add this to ` + bashrc + `:  eval "$(pathpin init bash)"`},
+		{"/usr/bin/zsh", "", "", `Add this to ~/.zshrc:  eval "$(pathpin init zsh)"`},
+		{"/usr/bin/zsh", filepath.Join(e.home, ".config/zsh"), "", `Add this to ~/.config/zsh/.zshrc:  eval "$(pathpin init zsh)"`},
+		{"/usr/bin/zsh", "/etc/zsh", "", `Add this to /etc/zsh/.zshrc:  eval "$(pathpin init zsh)"`},
+		{"/usr/bin/zsh", "zdot", "", `Add this to ~/.zshrc:  eval "$(pathpin init zsh)"`},
+		{"/usr/bin/fish", "", "", "Add this to ~/.config/fish/config.fish:  pathpin init fish | source"},
+		{"/usr/bin/fish", "", filepath.Join(e.home, "xdg"), "Add this to ~/xdg/fish/config.fish:  pathpin init fish | source"},
+		{"/usr/bin/fish", "", "cfg", "Add this to ~/.config/fish/config.fish:  pathpin init fish | source"},
+		{"/bin/tcsh", "", "", "See 'pathpin init --help'."},
+		{"", "", "", "See 'pathpin init --help'."},
+	} {
+		t.Setenv("SHELL", tc.shell)
+		t.Setenv("ZDOTDIR", tc.zdotdir)
+		t.Setenv("XDG_CONFIG_HOME", tc.xdg)
+		hint := integrationHint()
+		if !strings.HasPrefix(hint, "pathpin: shell integration isn't set up") {
+			t.Errorf("SHELL=%q: hint should start with the explanation:\n%s", tc.shell, hint)
+		}
+		if !strings.Contains(hint, tc.want) {
+			t.Errorf("SHELL=%q ZDOTDIR=%q XDG_CONFIG_HOME=%q: want %q in\n%s",
+				tc.shell, tc.zdotdir, tc.xdg, tc.want, hint)
+		}
+	}
+}
+
+// Without the wrapper, the chosen path goes to stdout for `cd "$(pathpin)"`.
+// Whether the hint shows depends on stdout being a terminal, which needs a
+// pty to test; a test's buffer never is one.
+func TestNoWrapperPrintsPath(t *testing.T) {
+	e := newRootEnv(t)
+	t.Setenv(shell.CDFileEnv, "")
+	stdout, _, err := e.run(t, func(*config.Config, string) (string, error) {
+		return "/chosen/dir", nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stdout != "/chosen/dir\n" {
+		t.Errorf("stdout = %q, want the path", stdout)
 	}
 }

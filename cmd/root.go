@@ -18,6 +18,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"runtime/debug"
 	"strings"
 
@@ -241,16 +242,35 @@ func isTerminal(w io.Writer) bool {
 	return err == nil && fi.Mode()&os.ModeCharDevice != 0
 }
 
-// integrationHint tells the user how to set up the wrapper for their shell.
+// integrationHint tells the user how to set up the wrapper for their shell,
+// naming the file it reads at startup: zsh looks in $ZDOTDIR and fish in
+// $XDG_CONFIG_HOME when they're absolute paths (relative ones are ignored, as
+// config.DefaultPath does), and bash on macOS reads ~/.bash_profile, since
+// Terminal starts it as a login shell.
 func integrationHint() string {
 	const intro = "pathpin: shell integration isn't set up, so pathpin can't change your directory.\n"
+	add := func(rc, line string) string {
+		return intro + "     Add this to " + rc + ":  " + line + "\n"
+	}
 	switch filepath.Base(os.Getenv("SHELL")) {
 	case "bash":
-		return intro + "     Add this to ~/.bashrc:  eval \"$(pathpin init bash)\"\n"
+		rc := "~/.bashrc"
+		if runtime.GOOS == "darwin" {
+			rc = "~/.bash_profile"
+		}
+		return add(rc, `eval "$(pathpin init bash)"`)
 	case "zsh":
-		return intro + "     Add this to ~/.zshrc:  eval \"$(pathpin init zsh)\"\n"
+		rc := "~/.zshrc"
+		if d := os.Getenv("ZDOTDIR"); filepath.IsAbs(d) {
+			rc = config.ContractHome(filepath.Join(d, ".zshrc"))
+		}
+		return add(rc, `eval "$(pathpin init zsh)"`)
 	case "fish":
-		return intro + "     Add this to ~/.config/fish/config.fish:  pathpin init fish | source\n"
+		rc := "~/.config/fish/config.fish"
+		if d := os.Getenv("XDG_CONFIG_HOME"); filepath.IsAbs(d) {
+			rc = config.ContractHome(filepath.Join(d, "fish", "config.fish"))
+		}
+		return add(rc, "pathpin init fish | source")
 	}
 	return intro + "     See 'pathpin init --help'.\n"
 }
