@@ -1,0 +1,42 @@
+# Sample bookmarks for the README's demo GIF (demo.tape copies this into a
+# throwaway $HOME). The folders are created empty when the tape runs.
+
+[[bookmark]]
+label = "NOTES"
+path = "~/notes"
+
+[[bookmark]]
+label = "NVIM"
+path = "~/dotfiles/nvim"
+group = "Config"
+
+[[bookmark]]
+label = "BASH"
+path = "~/dotfiles/bash"
+group = "Config"
+
+[[bookmark]]
+label = "CS310"
+path = "~/school/cs310"
+group = "School"
+
+[[bookmark]]
+label = "THESIS"
+path = "~/school/thesis"
+group = "School"
+
+[[bookmark]]
+label = "API"
+path = "~/work/api"
+group = "Work"
+
+[[bookmark]]
+label = "WEB"
+path = "~/work/web"
+group = "Work"
+
+[colors]
+theme = "catppuccin-mocha"
+
+[menu]
+icons = "triangle"

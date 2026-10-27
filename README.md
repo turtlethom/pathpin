@@ -5,7 +5,7 @@ use, then jump to them from a menu or by label. Written in Go with
 [Bubble Tea](https://github.com/charmbracelet/bubbletea). Works in bash, zsh and fish on Linux
 and macOS.
 
-<!-- demo GIF (VHS, demo.tape) goes here -->
+![pathpin: open the menu, switch group tabs, filter to a bookmark and go there, jump by label, and preview themes live](https://raw.githubusercontent.com/turtlethom/pathpin/main/demo/demo.gif)
 
 ```bash
 pathpin              # open the menu: pick a folder, press enter, you're there
