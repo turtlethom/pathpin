@@ -22,8 +22,6 @@ pathpin notes        # or jump straight to the bookmark labeled NOTES
 
 ## Install
 
-> v2.0.0 isn't released yet. Until it is, build from source (below).
-
 Download the latest release into `~/.local/bin` (make sure that folder is on your `PATH`), with
 the line for your system:
 
