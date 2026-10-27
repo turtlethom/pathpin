@@ -56,8 +56,8 @@ What happens when you type `pp`, pick a bookmark, and press enter:
 1. **Shell:** the `pp` function makes a temp file and runs
    `PATHPIN_CD_FILE=<tmp> PATHPIN_CMD=pp command pathpin`.
 2. **`cmd.Execute`** builds the command tree (`NewRootCmd`, which also sets the
-   version for `--version` with `versionString`: the stamped one, else Go's build
-   info, else `dev`) and runs it. With no arguments, the root's `RunE` runs.
+   version for `--version`; see [Versions and releases](#versions-and-releases))
+   and runs it. With no arguments, the root's `RunE` runs.
 3. **`loadConfig`** finds the config (`config.DefaultPath`) and calls
    `config.LoadOrMigrate`. On the very first run it imports fcd's JSON and
    prints one line about it.
@@ -307,6 +307,46 @@ header = "text"
 - **CI** (`.github/workflows/ci.yml`) runs `gofmt`, `go vet`, `go build` and
   `go test -race` on Linux and macOS, with zsh and fish installed for the
   shell tests.
+
+## Versions and releases
+
+- **Module path:** `github.com/turtlethom/pathpin/v2`. Go only accepts tags of
+  v2 and later when the module path ends in the major version.
+- **`pathpin --version`** prints `main.version` when the build stamped it
+  (`-ldflags "-X main.version=2.0.0"`), else the version Go records in the
+  binary, else `dev` (`versionString` in `cmd/root.go`). Go records the tag
+  when building a tagged commit (`go install …@v2.0.0`, or `go build` on a clean
+  tagged checkout), otherwise a pseudo-version naming the commit
+  (`2.0.1-0.20261101…-abc123`), with `+dirty` for uncommitted changes. The
+  leading `v` is dropped from every source. It always says `pathpin`, even with
+  `--cmd pp`. `version` lives in `main` so the ldflags name doesn't change with
+  the module path.
+- **Releasing:** push an annotated tag like `v2.0.1` on `main`.
+  `.github/workflows/release.yml` runs `ci.yml` on the tagged commit
+  (`workflow_call`), then GoReleaser (configured by `.goreleaser.yaml`, its
+  version pinned in `release.yml`) builds cgo-free binaries for Linux and macOS
+  (static on Linux), amd64 and arm64, packs them as
+  `pathpin_<os>_<arch>.tar.gz` with `checksums.txt`, and opens a **draft**
+  release with the feat/fix commits since the previous tag. Edit the notes only
+  after the final tag push (re-pushing a tag replaces the draft and its notes,
+  `replace_existing_draft`), then publish. Archive names have no version, so the
+  README's `releases/latest/download/...` install lines always get the newest
+  published release; GitHub's "latest" never points at a pre-release
+  (`v2.1.0-rc.1`, marked as one by `prerelease: auto`) or a draft.
+- **Trying it locally:** `goreleaser check`, and
+  `goreleaser release --snapshot --clean` to build into `dist/` without
+  publishing. Use the version pinned in `release.yml`
+  (`go run github.com/goreleaser/goreleaser/v2@<version> check`), so local and
+  CI runs agree.
+- **Tags:** `fcd-final` marks fcd's last commit. Tags that aren't releases
+  never start with `v`: tags like `v1.2.3` start a release, and Go reads `v`
+  tags as module versions. Avoid other tags between releases too: GoReleaser
+  takes the nearest tag of any name as the previous one, so a marker tag would
+  cut the next changelog short.
+- **The demo GIF:** `vhs demo/demo.tape` from the repo's root re-records
+  `demo/demo.gif` in a throwaway `$HOME` (needs vhs, ttyd and ffmpeg). It builds
+  the working tree, uncommitted changes included, so record from a committed
+  tree.
 
 ## Recipes
 
