@@ -1,0 +1,39 @@
+name: release
+
+# Pushing a version tag (git tag v2.0.0 && git push origin v2.0.0) runs CI on
+# it, then builds the archives with GoReleaser (.goreleaser.yaml) and opens a
+# draft GitHub Release.
+on:
+  push:
+    tags: ["v[0-9]+.[0-9]+.[0-9]+*"] # v2.0.0, v2.1.0-rc.1; not v2-wip
+
+permissions:
+  contents: read # only the release job below can write
+
+jobs:
+  # The same checks as every push (gofmt, vet, build, tests on Linux and
+  # macOS), run on the tagged commit itself, with a read-only token.
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  release:
+    needs: ci
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # create the release and upload its files
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # the whole history and tags, for the changelog
+          persist-credentials: false # GoReleaser takes the token from env, not .git/config
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - uses: goreleaser/goreleaser-action@v7
+        with:
+          version: v2.18.3 # pinned, so a new GoReleaser can't change a release by surprise
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

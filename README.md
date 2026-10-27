@@ -24,9 +24,26 @@ pathpin notes        # or jump straight to the bookmark labeled NOTES
 
 > v2.0.0 isn't released yet. Until it is, build from source (below).
 
-Download the archive for your system (Linux or macOS, amd64 or arm64) from
-[Releases](https://github.com/turtlethom/pathpin/releases), unpack it, and put `pathpin` in a
-folder on your `PATH`, such as `~/.local/bin`.
+Download the latest release into `~/.local/bin` (make sure that folder is on your `PATH`), with
+the line for your system:
+
+```bash
+mkdir -p ~/.local/bin
+
+# Linux, x86-64
+curl -fsSL https://github.com/turtlethom/pathpin/releases/latest/download/pathpin_linux_amd64.tar.gz | tar -xzf - -C ~/.local/bin pathpin
+# Linux, ARM
+curl -fsSL https://github.com/turtlethom/pathpin/releases/latest/download/pathpin_linux_arm64.tar.gz | tar -xzf - -C ~/.local/bin pathpin
+# macOS, Apple Silicon
+curl -fsSL https://github.com/turtlethom/pathpin/releases/latest/download/pathpin_darwin_arm64.tar.gz | tar -xzf - -C ~/.local/bin pathpin
+# macOS, Intel
+curl -fsSL https://github.com/turtlethom/pathpin/releases/latest/download/pathpin_darwin_amd64.tar.gz | tar -xzf - -C ~/.local/bin pathpin
+```
+
+Each [release](https://github.com/turtlethom/pathpin/releases) also lists the archives and a
+`checksums.txt` to verify them. If you download one in a browser on macOS, run
+`xattr -d com.apple.quarantine pathpin` once after unpacking: pathpin isn't signed by Apple, so
+macOS refuses to open a browser download otherwise (files fetched with `curl` aren't affected).
 
 Or build it from source (needs Go 1.25.4 or newer):
 

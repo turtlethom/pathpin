@@ -1,0 +1,60 @@
+# GoReleaser builds a GitHub Release from a v* tag (.github/workflows/release.yml
+# runs it). To try it locally without publishing:
+#   goreleaser check
+#   goreleaser release --snapshot --clean    # builds into dist/
+version: 2
+
+project_name: pathpin
+
+builds:
+  - binary: pathpin
+    env:
+      - CGO_ENABLED=0 # a static binary that runs on any Linux, whatever its libc
+    goos: [linux, darwin]
+    goarch: [amd64, arm64]
+    flags:
+      - -trimpath # no build machine paths in the binary
+    ldflags:
+      # main.version is what `pathpin --version` prints (see main.go).
+      # {{.Version}} is the tag without its v: v2.0.0 gives 2.0.0.
+      - -s -w -X main.version={{.Version}}
+    mod_timestamp: "{{ .CommitTimestamp }}" # same tag, same files
+
+archives:
+  - formats: [tar.gz]
+    # No version in the name, so releases/latest/download/pathpin_linux_amd64.tar.gz
+    # always gets the newest release (the README's install lines use it).
+    name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - README.md
+      - LICENSE
+
+checksum:
+  name_template: checksums.txt
+
+snapshot:
+  # Local test builds. Without this they'd be named after the nearest tag,
+  # which is fcd-final (fcd's last commit).
+  version_template: "0.0.0-SNAPSHOT-{{ .ShortCommit }}"
+
+changelog:
+  # From the previous tag (fcd-final, for v2.0.0) to this one. Only feat and
+  # fix commits are listed: there's no catch-all group, so everything else
+  # (docs, test, refactor, and fcd-era commits from merged branches) is left out.
+  use: git
+  sort: asc
+  abbrev: 7
+  groups:
+    - title: Features
+      regexp: '^feat'
+      order: 0
+    - title: Fixes
+      regexp: '^fix'
+      order: 1
+
+release:
+  # A draft, so the notes can be read and edited before anyone sees it:
+  # publish it from the Releases page.
+  draft: true
+  replace_existing_draft: true # re-pushing a tag after a fix replaces its draft
+  prerelease: auto # v2.1.0-rc.1 and the like are marked as pre-releases
