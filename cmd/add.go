@@ -61,7 +61,7 @@ a group that exists in another case is joined with its spelling.`,
 			if sub, ok := commandNamed(cmd.Root(), b.Label); ok {
 				fmt.Fprintf(errOut, "%[1]s: note: %[2]q is also a command, so '%[1]s %[3]s' won't jump here.\n"+
 					"     Use the menu, or type it in another case: '%[1]s %[4]s'.\n",
-					me, b.Label, sub, otherCase(b.Label))
+					me, b.Label, sub, otherCase(b.Label, sub))
 			}
 			return nil
 		},
@@ -109,11 +109,12 @@ func commandNamed(root *cobra.Command, label string) (string, bool) {
 	return "", false
 }
 
-// otherCase returns label in a case Cobra won't match against a lowercase
-// command name.
-func otherCase(label string) string {
-	if up := strings.ToUpper(label); up != label {
-		return up
+// otherCase is how to type label so Cobra doesn't take it as the command sub:
+// as typed if that differs from sub (Cobra matches names exactly), else in
+// uppercase.
+func otherCase(label, sub string) string {
+	if label != sub {
+		return label
 	}
-	return strings.ToLower(label[:1]) + label[1:]
+	return strings.ToUpper(label)
 }
