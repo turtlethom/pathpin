@@ -1,0 +1,4 @@
+
+  «bg=#88c0d0| »«fg=#2e3440,bg=#88c0d0,bold|PATHPIN»«bg=#88c0d0| »
+
+   «fg=#616e88|No bookmarks yet — press a to add this directory»

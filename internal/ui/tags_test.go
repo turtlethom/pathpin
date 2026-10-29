@@ -12,13 +12,13 @@ import (
 func rawRow(t *testing.T, m Model, label string) string {
 	t.Helper()
 	found := ""
-	for line := range strings.SplitSeq(m.View(), "\n") {
+	for line := range strings.SplitSeq(m.screen(), "\n") {
 		if strings.HasPrefix(strings.TrimLeft(plain(line), " │"), label) {
 			found = line
 		}
 	}
 	if found == "" {
-		t.Fatalf("no row for %s:\n%s", label, plain(m.View()))
+		t.Fatalf("no row for %s:\n%s", label, plain(m.screen()))
 	}
 	return found
 }
@@ -56,7 +56,7 @@ func TestGroupTagsOnAll(t *testing.T) {
 			t.Errorf("School tab: want no tag, got %q", got)
 		}
 	}
-	if view := plain(twoBookmarks(t).View()); strings.Contains(view, "·") {
+	if view := plain(twoBookmarks(t).screen()); strings.Contains(view, "·") {
 		t.Errorf("no groups: want no tags:\n%s", view)
 	}
 }

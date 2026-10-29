@@ -65,6 +65,42 @@ func press(m Model, key tea.KeyMsg) (Model, tea.Cmd) {
 
 func runes(s string) tea.KeyMsg { return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(s)} }
 
+// keyMsg is a special key by the name Bubble Tea gives it ("enter", "esc",
+// "shift+tab", "ctrl+c"). With runes, it's the one place tests build key
+// messages, so a new key type in Bubble Tea v2 changes only these two.
+func keyMsg(name string) tea.KeyMsg {
+	types := map[string]tea.KeyType{
+		"enter": tea.KeyEnter, "esc": tea.KeyEsc, "tab": tea.KeyTab, "shift+tab": tea.KeyShiftTab,
+		"up": tea.KeyUp, "down": tea.KeyDown, "left": tea.KeyLeft, "right": tea.KeyRight,
+		"shift+up": tea.KeyShiftUp, "shift+down": tea.KeyShiftDown,
+		"ctrl+c": tea.KeyCtrlC, "ctrl+u": tea.KeyCtrlU,
+	}
+	t, ok := types[name]
+	if !ok {
+		panic("keyMsg: no key named " + name)
+	}
+	return tea.KeyMsg{Type: t}
+}
+
+// keyMsg's names are the ones Bubble Tea gives its keys, which the menu
+// matches with msg.String(), so a key a test presses is the key it means.
+func TestKeyMsgNames(t *testing.T) {
+	for _, name := range []string{"enter", "esc", "tab", "shift+tab", "up", "down", "left", "right",
+		"shift+up", "shift+down", "ctrl+c", "ctrl+u"} {
+		if got := keyMsg(name).String(); got != name {
+			t.Errorf("keyMsg(%q) is %q", name, got)
+		}
+	}
+	if got := runes("cs").String(); got != "cs" {
+		t.Errorf(`runes("cs") is %q`, got)
+	}
+}
+
+// screen is what the menu draws, as text with its escape codes: View's
+// string. It's the one place tests read the view, so Bubble Tea v2's View
+// type changes only this.
+func (m Model) screen() string { return m.View() }
+
 // isQuit runs cmd, so only call it when cmd can't be a timer.
 func isQuit(cmd tea.Cmd) bool {
 	if cmd == nil {
@@ -75,7 +111,7 @@ func isQuit(cmd tea.Cmd) bool {
 }
 
 func TestEnterChoosesHighlighted(t *testing.T) {
-	m, cmd := press(twoBookmarks(t), tea.KeyMsg{Type: tea.KeyEnter})
+	m, cmd := press(twoBookmarks(t), keyMsg("enter"))
 	if !strings.HasSuffix(m.chosen, filepath.Join(".config", "nvim")) {
 		t.Errorf("chosen: got %q", m.chosen)
 	}
@@ -88,8 +124,8 @@ func TestEnterChoosesHighlighted(t *testing.T) {
 func TestQuitKeysChooseNothing(t *testing.T) {
 	keys := map[string]tea.KeyMsg{
 		"q":      runes("q"),
-		"esc":    {Type: tea.KeyEsc},
-		"ctrl+c": {Type: tea.KeyCtrlC},
+		"esc":    keyMsg("esc"),
+		"ctrl+c": keyMsg("ctrl+c"),
 	}
 	for name, key := range keys {
 		m, cmd := press(twoBookmarks(t), key)
@@ -121,25 +157,25 @@ func TestQWhileFilteringIsTyped(t *testing.T) {
 }
 
 func TestRowsShowHomeAsTilde(t *testing.T) {
-	view := twoBookmarks(t).View()
-	if !strings.Contains(view, "~/.config/nvim") {
+	view := twoBookmarks(t).screen()
+	if !strings.Contains(plain(view), "~/.config/nvim") {
 		t.Errorf("want ~/.config/nvim in the view:\n%s", view)
 	}
 }
 
 func TestMissingRowRefusesEnter(t *testing.T) {
 	m := newTestModel(t, config.Bookmark{Label: "GONE", Path: "!old/project"})
-	if !strings.Contains(m.View(), "GONE (missing)") {
-		t.Errorf("want a (missing) tag:\n%s", m.View())
+	if !strings.Contains(m.screen(), "GONE (missing)") {
+		t.Errorf("want a (missing) tag:\n%s", m.screen())
 	}
 
 	// Don't run the command: it's the status message's timer.
-	m, _ = press(m, tea.KeyMsg{Type: tea.KeyEnter})
+	m, _ = press(m, keyMsg("enter"))
 	if m.chosen != "" {
 		t.Errorf("enter on a missing folder chose %q", m.chosen)
 	}
-	if !strings.Contains(m.View(), "~/old/project no longer exists") {
-		t.Errorf("want a status message:\n%s", m.View())
+	if !strings.Contains(m.screen(), "~/old/project no longer exists") {
+		t.Errorf("want a status message:\n%s", m.screen())
 	}
 }
 
@@ -150,7 +186,7 @@ func TestEnterRechecksMissingRow(t *testing.T) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	m, cmd := press(m, tea.KeyMsg{Type: tea.KeyEnter})
+	m, cmd := press(m, keyMsg("enter"))
 	if m.chosen != dir || !isQuit(cmd) {
 		t.Errorf("want to cd into the restored folder, chose %q", m.chosen)
 	}
@@ -158,10 +194,10 @@ func TestEnterRechecksMissingRow(t *testing.T) {
 
 func TestEmptyState(t *testing.T) {
 	m := newTestModel(t)
-	if !strings.Contains(m.View(), emptyMessage) {
-		t.Errorf("want the empty-state message:\n%s", m.View())
+	if !strings.Contains(m.screen(), emptyMessage) {
+		t.Errorf("want the empty-state message:\n%s", m.screen())
 	}
-	if _, cmd := press(m, tea.KeyMsg{Type: tea.KeyEnter}); cmd != nil {
+	if _, cmd := press(m, keyMsg("enter")); cmd != nil {
 		t.Error("enter on an empty menu should do nothing")
 	}
 }
@@ -287,11 +323,11 @@ func TestLongLabelFitsWidth(t *testing.T) {
 	m.list.SetShowHelp(false)
 	for _, down := range []bool{false, true} { // first row selected, then the missing one
 		if down {
-			m, _ = press(m, tea.KeyMsg{Type: tea.KeyDown})
+			m, _ = press(m, keyMsg("down"))
 		}
 		// lipgloss pads every line to the widest, so one check covers them all.
-		if w := lipgloss.Width(m.View()); w > width {
-			t.Errorf("selected row %d: view is %d wide, window is %d:\n%s", m.list.Index(), w, width, m.View())
+		if w := lipgloss.Width(m.screen()); w > width {
+			t.Errorf("selected row %d: view is %d wide, window is %d:\n%s", m.list.Index(), w, width, m.screen())
 		}
 	}
 }
@@ -304,7 +340,7 @@ func TestLabelsShowUppercase(t *testing.T) {
 		config.Bookmark{Label: "Day Job", Path: "work"},
 		config.Bookmark{Label: "gone", Path: "!old/project"},
 	)
-	view := m.View()
+	view := m.screen()
 	for _, want := range []string{"DOTFILES", "DAY JOB", "GONE (missing)"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("want %q in the view:\n%s", want, view)
@@ -326,10 +362,10 @@ func TestLabelsShowUppercase(t *testing.T) {
 	m.list.ResetFilter()
 
 	// Prompts show the label the way the row does.
-	m, _ = press(m, tea.KeyMsg{Type: tea.KeyDown}) // Day Job
+	m, _ = press(m, keyMsg("down")) // Day Job
 	m, _ = press(m, runes("r"))
-	if !strings.Contains(m.View(), "Remove DAY JOB? y/N") {
-		t.Fatalf("want the prompt in uppercase:\n%s", m.View())
+	if !strings.Contains(m.screen(), "Remove DAY JOB? y/N") {
+		t.Fatalf("want the prompt in uppercase:\n%s", m.screen())
 	}
 	m, _ = press(m, runes("y"))
 	got := onDisk(t, m)
@@ -339,15 +375,15 @@ func TestLabelsShowUppercase(t *testing.T) {
 
 	m.cwd = m.cfg.Bookmarks[0].Path // dotfiles
 	m, _ = press(m, runes("a"))
-	if !strings.Contains(m.View(), "This folder is already saved as DOTFILES") {
-		t.Errorf("want the already-saved message in uppercase:\n%s", m.View())
+	if !strings.Contains(m.screen(), "This folder is already saved as DOTFILES") {
+		t.Errorf("want the already-saved message in uppercase:\n%s", m.screen())
 	}
 }
 
 func TestRemoveConfirmed(t *testing.T) {
 	m, _ := press(twoBookmarks(t), runes("r"))
-	if m.mode != modeConfirm || !strings.Contains(m.View(), "Remove NVIM? y/N") {
-		t.Fatalf("r should prompt:\n%s", m.View())
+	if m.mode != modeConfirm || !strings.Contains(m.screen(), "Remove NVIM? y/N") {
+		t.Fatalf("r should prompt:\n%s", m.screen())
 	}
 	// Don't run the command: it's the status message's timer.
 	m, _ = press(m, runes("y"))
@@ -360,8 +396,8 @@ func TestRemoveConfirmed(t *testing.T) {
 	if n := len(m.list.Items()); n != 1 {
 		t.Errorf("list should have 1 row, has %d", n)
 	}
-	if !strings.Contains(m.View(), "Removed NVIM") {
-		t.Errorf("want a Removed status:\n%s", m.View())
+	if !strings.Contains(m.screen(), "Removed NVIM") {
+		t.Errorf("want a Removed status:\n%s", m.screen())
 	}
 }
 
@@ -370,8 +406,8 @@ func TestConfirmCancelKeys(t *testing.T) {
 	keys := map[string]tea.KeyMsg{
 		"n":     runes("n"),
 		"q":     runes("q"),
-		"enter": {Type: tea.KeyEnter},
-		"esc":   {Type: tea.KeyEsc},
+		"enter": keyMsg("enter"),
+		"esc":   keyMsg("esc"),
 	}
 	for name, k := range keys {
 		for _, start := range []string{"r", "c"} {
@@ -389,14 +425,14 @@ func TestConfirmCancelKeys(t *testing.T) {
 
 func TestClearConfirmed(t *testing.T) {
 	m, _ := press(twoBookmarks(t), runes("c"))
-	if !strings.Contains(m.View(), "Delete all 2 bookmarks? y/N") {
-		t.Fatalf("c should prompt with the count:\n%s", m.View())
+	if !strings.Contains(m.screen(), "Delete all 2 bookmarks? y/N") {
+		t.Fatalf("c should prompt with the count:\n%s", m.screen())
 	}
 	m, _ = press(m, runes("Y"))
 	if len(onDisk(t, m)) != 0 {
 		t.Error("the file should be empty")
 	}
-	view := m.View()
+	view := m.screen()
 	if !strings.Contains(view, emptyMessage) || !strings.Contains(view, "Cleared 2 bookmarks. Backup: ~/.config/pathpin/config.toml.bak") {
 		t.Errorf("want the empty state and the backup path:\n%s", view)
 	}
@@ -411,8 +447,8 @@ func TestRemoveWithFilterApplied(t *testing.T) {
 	m := twoBookmarks(t)
 	m.list.SetFilterText("NOTES")
 	m, _ = press(m, runes("r"))
-	if !strings.Contains(m.View(), "Remove NOTES? y/N") {
-		t.Fatalf("r should target the filtered row:\n%s", m.View())
+	if !strings.Contains(m.screen(), "Remove NOTES? y/N") {
+		t.Fatalf("r should target the filtered row:\n%s", m.screen())
 	}
 	m, _ = press(m, runes("y"))
 	if got := onDisk(t, m); len(got) != 1 || got[0].Label != "NVIM" {
@@ -422,8 +458,8 @@ func TestRemoveWithFilterApplied(t *testing.T) {
 	m = twoBookmarks(t)
 	m.list.SetFilterText("NOTES")
 	m, _ = press(m, runes("c"))
-	if !strings.Contains(m.View(), "Delete all 2 bookmarks? y/N") {
-		t.Errorf("c should count every bookmark, not just filtered ones:\n%s", m.View())
+	if !strings.Contains(m.screen(), "Delete all 2 bookmarks? y/N") {
+		t.Errorf("c should count every bookmark, not just filtered ones:\n%s", m.screen())
 	}
 }
 
@@ -468,12 +504,12 @@ func TestFailedSaveKeepsBookmark(t *testing.T) {
 	if len(m.list.Items()) != 2 || len(m.cfg.Bookmarks) != 2 {
 		t.Error("a failed save should keep the bookmark")
 	}
-	if !strings.Contains(m.View(), "couldn't save") {
-		t.Errorf("want the save error on screen:\n%s", m.View())
+	if !strings.Contains(m.screen(), "couldn't save") {
+		t.Errorf("want the save error on screen:\n%s", m.screen())
 	}
 	// The error stays until the next key.
-	m, _ = press(m, tea.KeyMsg{Type: tea.KeyDown})
-	if strings.Contains(m.View(), "couldn't save") {
+	m, _ = press(m, keyMsg("down"))
+	if strings.Contains(m.screen(), "couldn't save") {
 		t.Error("the error should clear on the next key")
 	}
 }
@@ -496,11 +532,11 @@ func launchFrom(t *testing.T, m Model, rel string) (Model, string) {
 func TestAddUsesSuggestedLabel(t *testing.T) {
 	m, dir := launchFrom(t, twoBookmarks(t), "projects/app")
 	m, _ = press(m, runes("a"))
-	if m.mode != modeInput || !strings.Contains(m.View(), "APP") {
-		t.Fatalf("a should open the field suggesting APP:\n%s", m.View())
+	if m.mode != modeInput || !strings.Contains(plain(m.screen()), "APP") {
+		t.Fatalf("a should open the field suggesting APP:\n%s", m.screen())
 	}
 	// Don't run commands from here on: they include the status message's timer.
-	m, _ = press(m, tea.KeyMsg{Type: tea.KeyEnter})
+	m, _ = press(m, keyMsg("enter"))
 	got := onDisk(t, m)
 	if len(got) != 3 || got[2].Label != "APP" || got[2].Path != dir {
 		t.Errorf("want APP appended for %s, got %+v", dir, got)
@@ -508,8 +544,8 @@ func TestAddUsesSuggestedLabel(t *testing.T) {
 	if sel, _ := m.list.SelectedItem().(item); sel.Label != "APP" {
 		t.Errorf("the new row should be selected, got %q", sel.Label)
 	}
-	if m.mode != modeBrowse || !strings.Contains(m.View(), "Added APP") {
-		t.Errorf("want browse mode and an Added status:\n%s", m.View())
+	if m.mode != modeBrowse || !strings.Contains(m.screen(), "Added APP") {
+		t.Errorf("want browse mode and an Added status:\n%s", m.screen())
 	}
 }
 
@@ -517,12 +553,12 @@ func TestAddTypedLabelIsKeptAsTyped(t *testing.T) {
 	m, _ := launchFrom(t, twoBookmarks(t), "work")
 	m, _ = press(m, runes("a"))
 	m, _ = press(m, runes("Day Job"))
-	m, _ = press(m, tea.KeyMsg{Type: tea.KeyEnter})
+	m, _ = press(m, keyMsg("enter"))
 	if got := onDisk(t, m); len(got) != 3 || got[2].Label != "Day Job" {
 		t.Errorf("want the typed label as-is, got %+v", got)
 	}
-	if !strings.Contains(m.View(), "Added DAY JOB") {
-		t.Errorf("the status should show the label the way the row does:\n%s", m.View())
+	if !strings.Contains(m.screen(), "Added DAY JOB") {
+		t.Errorf("the status should show the label the way the row does:\n%s", m.screen())
 	}
 }
 
@@ -536,7 +572,7 @@ func TestAddFieldTypesLettersAndEscCancels(t *testing.T) {
 	if m.mode != modeInput || m.input.Value() != "qrc" {
 		t.Errorf("want q, r, c typed into the field, got mode %v, value %q", m.mode, m.input.Value())
 	}
-	m, cmd := press(m, tea.KeyMsg{Type: tea.KeyEsc})
+	m, cmd := press(m, keyMsg("esc"))
 	if m.mode != modeBrowse || cmd != nil || len(onDisk(t, m)) != 2 {
 		t.Error("esc should cancel without saving or quitting")
 	}
@@ -552,8 +588,8 @@ func TestAddAlreadySavedFolder(t *testing.T) {
 	if sel, _ := m.list.SelectedItem().(item); sel.Label != "NOTES" {
 		t.Errorf("the existing bookmark should be selected, got %q", sel.Label)
 	}
-	if !strings.Contains(m.View(), "This folder is already saved as NOTES") {
-		t.Errorf("want the already-saved message:\n%s", m.View())
+	if !strings.Contains(m.screen(), "This folder is already saved as NOTES") {
+		t.Errorf("want the already-saved message:\n%s", m.screen())
 	}
 }
 
@@ -562,13 +598,13 @@ func TestAddDuplicateLabelKeepsFieldOpen(t *testing.T) {
 	m, _ := launchFrom(t, twoBookmarks(t), "editor")
 	m, _ = press(m, runes("a"))
 	m, _ = press(m, runes("nvim"))
-	m, _ = press(m, tea.KeyMsg{Type: tea.KeyEnter})
-	if m.mode != modeInput || !strings.Contains(m.View(), "already exists") {
-		t.Fatalf("want the field open with the error:\n%s", m.View())
+	m, _ = press(m, keyMsg("enter"))
+	if m.mode != modeInput || !strings.Contains(m.screen(), "already exists") {
+		t.Fatalf("want the field open with the error:\n%s", m.screen())
 	}
-	m, _ = press(m, tea.KeyMsg{Type: tea.KeyCtrlU}) // clear the field
+	m, _ = press(m, keyMsg("ctrl+u")) // clear the field
 	m, _ = press(m, runes("EDITOR"))
-	m, _ = press(m, tea.KeyMsg{Type: tea.KeyEnter})
+	m, _ = press(m, keyMsg("enter"))
 	if got := onDisk(t, m); len(got) != 3 || got[2].Label != "EDITOR" {
 		t.Errorf("want EDITOR added after fixing the label, got %+v", got)
 	}
@@ -578,8 +614,8 @@ func TestAddFromMissingFolder(t *testing.T) {
 	m := twoBookmarks(t)
 	m.cwd = filepath.Join(t.TempDir(), "deleted")
 	m, _ = press(m, runes("a"))
-	if m.mode != modeBrowse || !strings.Contains(m.View(), "can't add: current folder no longer exists") {
-		t.Errorf("want an error instead of the field:\n%s", m.View())
+	if m.mode != modeBrowse || !strings.Contains(m.screen(), "can't add: current folder no longer exists") {
+		t.Errorf("want an error instead of the field:\n%s", m.screen())
 	}
 }
 
@@ -591,19 +627,19 @@ func TestAddFailedSaveKeepsList(t *testing.T) {
 	}
 	m.configPath = filepath.Join(blocker, "config.toml")
 	m, _ = press(m, runes("a"))
-	m, _ = press(m, tea.KeyMsg{Type: tea.KeyEnter})
+	m, _ = press(m, keyMsg("enter"))
 	if len(m.list.Items()) != 2 || len(m.cfg.Bookmarks) != 2 {
 		t.Error("a failed save should not add the row")
 	}
-	if m.mode != modeInput || !strings.Contains(m.View(), "couldn't save") {
-		t.Errorf("want the field open with the save error:\n%s", m.View())
+	if m.mode != modeInput || !strings.Contains(m.screen(), "couldn't save") {
+		t.Errorf("want the field open with the save error:\n%s", m.screen())
 	}
 }
 
 func TestAddFromEmptyMenu(t *testing.T) {
 	m, _ := launchFrom(t, newTestModel(t), "first")
 	m, _ = press(m, runes("a"))
-	m, _ = press(m, tea.KeyMsg{Type: tea.KeyEnter})
+	m, _ = press(m, keyMsg("enter"))
 	if got := onDisk(t, m); len(got) != 1 || got[0].Label != "FIRST" {
 		t.Errorf("a should work from the empty state, got %+v", got)
 	}

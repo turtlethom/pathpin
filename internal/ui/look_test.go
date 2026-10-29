@@ -163,7 +163,7 @@ func TestTitleBadge(t *testing.T) {
 		"bookmarks": nordModel(t, config.Bookmark{Label: "NOTES", Path: "notes"}),
 		"empty":     nordModel(t),
 	} {
-		line := rawLine(t, m.View(), "PATHPIN")
+		line := rawLine(t, m.screen(), "PATHPIN")
 		if strings.Contains(plain(line), "pathpin") {
 			t.Errorf("%s: the title should be uppercase, got %q", name, plain(line))
 		}
@@ -194,13 +194,13 @@ func barModel(t *testing.T) Model {
 func TestBarSelectionRendered(t *testing.T) {
 	withColor(t)
 	m := barModel(t)
-	_, label, _ := find(t, cells(rawLine(t, m.View(), "NOTES")), "NOTES")
+	_, label, _ := find(t, cells(rawLine(t, m.screen(), "NOTES")), "NOTES")
 	for _, c := range label {
 		if c.bg != "" || c.fg != fg(nordAccent) {
 			t.Fatalf("want the selected label in the accent (%s) with no background, got fg %q bg %q", nordAccent, c.fg, c.bg)
 		}
 	}
-	_, title, _ := find(t, cells(rawLine(t, m.View(), "PATHPIN")), "PATHPIN")
+	_, title, _ := find(t, cells(rawLine(t, m.screen(), "PATHPIN")), "PATHPIN")
 	for _, c := range title {
 		if c.bg != bg(nordAccent) {
 			t.Fatalf("the title should keep its badge in bar mode, got bg %q", c.bg)
@@ -208,8 +208,8 @@ func TestBarSelectionRendered(t *testing.T) {
 	}
 
 	m, _ = press(m, runes("t"))
-	m, _ = press(m, tea.KeyMsg{Type: tea.KeyRight}) // the next theme, previewed
-	_, label, _ = find(t, cells(rawLine(t, m.View(), "NOTES")), "NOTES")
+	m, _ = press(m, keyMsg("right")) // the next theme, previewed
+	_, label, _ = find(t, cells(rawLine(t, m.screen(), "NOTES")), "NOTES")
 	for _, c := range label {
 		if c.bg != "" {
 			t.Fatalf("the picker's preview should keep the bar, got a background %q on the label", c.bg)
@@ -226,7 +226,7 @@ func TestPathEmphasis(t *testing.T) {
 		config.Bookmark{Label: "API", Path: "projects/api"},  // not selected
 		config.Bookmark{Label: "OLD", Path: "!projects/old"}, // missing
 	)
-	view := m.View()
+	view := m.screen()
 	for _, last := range []string{"app", "api"} {
 		_, path, _ := find(t, cells(rawLine(t, view, "~/projects/"+last)), "~/projects/"+last)
 		prefix, folder := path[:len("~/projects/")], path[len("~/projects/"):]
@@ -243,7 +243,7 @@ func TestPathEmphasis(t *testing.T) {
 
 	// A bookmark of $HOME itself is all "last folder".
 	home := nordModel(t, config.Bookmark{Label: "HOME", Path: ""})
-	if _, tilde, _ := find(t, cells(rawLine(t, home.View(), "│ ~")), "~"); !allFg(tilde, fg(nordText)) {
+	if _, tilde, _ := find(t, cells(rawLine(t, home.screen(), "│ ~")), "~"); !allFg(tilde, fg(nordText)) {
 		t.Errorf("~ should use the label color, got %+v", tilde)
 	}
 }
@@ -256,7 +256,7 @@ func TestLongPathCutInMiddle(t *testing.T) {
 		config.Bookmark{Label: "WIDE", Path: "!a/" + strings.Repeat("x", 60)},
 	).sized(30, 24)
 	m.list.SetShowHelp(false) // the help line isn't cut to the window either; see TestLongLabelFitsWidth
-	view := m.View()
+	view := m.screen()
 
 	path := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(plain(rawLine(t, view, "/pathpin"))), "│"))
 	if !strings.HasPrefix(path, "~/") || !strings.HasSuffix(path, "/pathpin") || !strings.Contains(path, "…") {

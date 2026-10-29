@@ -41,7 +41,7 @@ func openPicker(t *testing.T, m Model) Model {
 	t.Helper()
 	m, _ = press(m, runes("t"))
 	if m.mode != modeTheme {
-		t.Fatalf("t should open the theme picker:\n%s", plain(m.View()))
+		t.Fatalf("t should open the theme picker:\n%s", plain(m.screen()))
 	}
 	return m
 }
@@ -54,16 +54,16 @@ func toRow(t *testing.T, m Model, name string) Model {
 		t.Fatalf("no picker row %q", name)
 	}
 	for range len(pickerRows) { // up to the theme row, whether ↑ stops at the top or wraps
-		m, _ = press(m, tea.KeyMsg{Type: tea.KeyUp})
+		m, _ = press(m, keyMsg("up"))
 		if strings.Contains(pickerLine(t, m, "theme"), "›") {
 			break
 		}
 	}
 	for range i {
-		m, _ = press(m, tea.KeyMsg{Type: tea.KeyDown})
+		m, _ = press(m, keyMsg("down"))
 	}
 	if !strings.Contains(pickerLine(t, m, name), "›") {
-		t.Fatalf("want %s highlighted:\n%s", name, plain(m.View()))
+		t.Fatalf("want %s highlighted:\n%s", name, plain(m.screen()))
 	}
 	return m
 }
@@ -71,17 +71,17 @@ func toRow(t *testing.T, m Model, name string) Model {
 // pickerLine is the visible text of the picker row with this name.
 func pickerLine(t *testing.T, m Model, name string) string {
 	t.Helper()
-	for line := range strings.SplitSeq(plain(m.View()), "\n") {
+	for line := range strings.SplitSeq(plain(m.screen()), "\n") {
 		if f := strings.Fields(strings.ReplaceAll(line, "›", " ")); len(f) > 0 && f[0] == name {
 			return line
 		}
 	}
-	t.Fatalf("no %s row in the picker:\n%s", name, plain(m.View()))
+	t.Fatalf("no %s row in the picker:\n%s", name, plain(m.screen()))
 	return ""
 }
 
-func right(m Model) Model { m, _ = press(m, tea.KeyMsg{Type: tea.KeyRight}); return m }
-func left(m Model) Model  { m, _ = press(m, tea.KeyMsg{Type: tea.KeyLeft}); return m }
+func right(m Model) Model { m, _ = press(m, keyMsg("right")); return m }
+func left(m Model) Model  { m, _ = press(m, keyMsg("left")); return m }
 
 // saved reports whether the menu has written the config since colorsModel.
 func saved(m Model) bool {
@@ -95,14 +95,14 @@ func saved(m Model) bool {
 func TestThemePickerOpens(t *testing.T) {
 	m := colorsModel(t, config.Colors{})
 	if help, _ := press(m, runes("?")); !helpShows(help, "t", "appearance") {
-		t.Errorf("the help page (?) should mention t:\n%s", plain(help.View()))
+		t.Errorf("the help page (?) should mention t:\n%s", plain(help.screen()))
 	}
 	m = openPicker(t, m)
 	for _, row := range pickerRows {
 		pickerLine(t, m, row)
 	}
 	if !strings.Contains(pickerLine(t, m, "theme"), "›") {
-		t.Errorf("the theme row should be highlighted first:\n%s", plain(m.View()))
+		t.Errorf("the theme row should be highlighted first:\n%s", plain(m.screen()))
 	}
 	if !strings.Contains(pickerLine(t, m, "theme"), "terminal") {
 		t.Errorf("no theme set should show terminal: %q", pickerLine(t, m, "theme"))
@@ -110,7 +110,7 @@ func TestThemePickerOpens(t *testing.T) {
 	if !strings.Contains(pickerLine(t, m, "primary"), "theme's") {
 		t.Errorf("an unset color should show theme's: %q", pickerLine(t, m, "primary"))
 	}
-	view := plain(m.View())
+	view := plain(m.screen())
 	for _, s := range []string{"d reset", "enter save", "esc cancel"} {
 		if !strings.Contains(view, s) {
 			t.Errorf("want %q on the picker's bottom line:\n%s", s, view)
@@ -124,7 +124,7 @@ func TestThemePickerOpens(t *testing.T) {
 	}
 
 	// An empty menu has colors too, with one blank line above the rows as usual.
-	lines := strings.Split(plain(openPicker(t, newTestModel(t)).View()), "\n")
+	lines := strings.Split(plain(openPicker(t, newTestModel(t)).screen()), "\n")
 	i := slices.IndexFunc(lines, func(l string) bool { return strings.Contains(l, "No bookmarks yet") })
 	if i < 0 || i+2 >= len(lines) || strings.TrimSpace(lines[i+1]) != "" || !strings.Contains(lines[i+2], "theme") {
 		t.Errorf("want one blank line between the empty message and the picker:\n%s", strings.Join(lines, "\n"))
@@ -150,9 +150,9 @@ func TestThemePickerFitsWindow(t *testing.T) {
 	} {
 		m = openPicker(t, m)
 		for size, m := range map[string]Model{"opened": m, "resized": m.sized(80, 24)} {
-			lines := strings.Split(m.View(), "\n")
+			lines := strings.Split(m.screen(), "\n")
 			if len(lines) > 24 {
-				t.Errorf("%s, %s: %d lines, want at most 24:\n%s", name, size, len(lines), plain(m.View()))
+				t.Errorf("%s, %s: %d lines, want at most 24:\n%s", name, size, len(lines), plain(m.screen()))
 			}
 			for _, l := range lines {
 				if w := lipgloss.Width(l); w > 80 {
@@ -167,15 +167,15 @@ func TestThemePickerFitsWindow(t *testing.T) {
 // ↑↓ move between rows, not the list's cursor; q doesn't quit.
 func TestThemePickerKeysStayInPicker(t *testing.T) {
 	m := openPicker(t, colorsModel(t, config.Colors{}))
-	for _, k := range []tea.KeyMsg{runes("j"), {Type: tea.KeyDown}} {
+	for _, k := range []tea.KeyMsg{runes("j"), keyMsg("down")} {
 		m, _ = press(m, k)
 	}
 	if !strings.Contains(pickerLine(t, m, "secondary"), "›") {
-		t.Errorf("j and ↓ should move down two rows:\n%s", plain(m.View()))
+		t.Errorf("j and ↓ should move down two rows:\n%s", plain(m.screen()))
 	}
 	m, _ = press(m, runes("k"))
 	if !strings.Contains(pickerLine(t, m, "primary"), "›") {
-		t.Errorf("k should move up a row:\n%s", plain(m.View()))
+		t.Errorf("k should move up a row:\n%s", plain(m.screen()))
 	}
 	if m.list.Index() != 0 {
 		t.Errorf("the list's cursor moved to %d", m.list.Index())
@@ -211,7 +211,7 @@ func TestThemeRowCyclesAndPreviews(t *testing.T) {
 		}
 		m = right(m)
 	}
-	view := m.View()
+	view := m.screen()
 	for _, s := range []string{"PATHPIN", "NVIM"} { // the badge and the selected row's block
 		_, word, _ := find(t, cells(rawLine(t, view, s)), s)
 		if word[0].bg != bg(nordAccent) {
@@ -229,9 +229,9 @@ func TestThemePickerEscRestores(t *testing.T) {
 	m := openPicker(t, colorsModel(t, config.Colors{Theme: "nord"}))
 	m = toRow(t, right(m), "primary")
 	m = right(m)
-	m, _ = press(m, tea.KeyMsg{Type: tea.KeyEsc})
+	m, _ = press(m, keyMsg("esc"))
 	if m.mode != modeBrowse {
-		t.Fatalf("esc should close the picker:\n%s", plain(m.View()))
+		t.Fatalf("esc should close the picker:\n%s", plain(m.screen()))
 	}
 	if saved(m) || m.cfg.Colors != (config.Colors{Theme: "nord"}) {
 		t.Errorf("esc shouldn't save or change the colors, got %+v", m.cfg.Colors)
@@ -239,7 +239,7 @@ func TestThemePickerEscRestores(t *testing.T) {
 	if colorsOf(m.styles) != colorsOf(NewStyles(m.cfg.Colors, config.Menu{})) {
 		t.Error("esc should restore the saved colors")
 	}
-	_, word, _ := find(t, cells(rawLine(t, m.View(), "PATHPIN")), "PATHPIN")
+	_, word, _ := find(t, cells(rawLine(t, m.screen(), "PATHPIN")), "PATHPIN")
 	if word[0].bg != bg(nordAccent) {
 		t.Errorf("the badge should be back on nord's accent, got bg %q", word[0].bg)
 	}
@@ -374,7 +374,7 @@ func TestPickerDefaultSwatch(t *testing.T) {
 		"secondary": nordText,
 		"tertiary":  nordMuted,
 	} {
-		_, swatch, after := find(t, cells(rawLine(t, m.View(), row+" ")), "██")
+		_, swatch, after := find(t, cells(rawLine(t, m.screen(), row+" ")), "██")
 		if !allFg(swatch, fg(want)) {
 			t.Errorf("%s: want a swatch in the theme's %s, got %+v", row, want, swatch)
 		}
@@ -385,7 +385,7 @@ func TestPickerDefaultSwatch(t *testing.T) {
 
 	// The swatch follows the theme row.
 	m = right(m) // nord → one-dark
-	_, swatch, _ := find(t, cells(rawLine(t, m.View(), "primary ")), "██")
+	_, swatch, _ := find(t, cells(rawLine(t, m.screen(), "primary ")), "██")
 	if !allFg(swatch, fg("#56b6c2")) {
 		t.Errorf("after switching to one-dark, want its accent, got %+v", swatch)
 	}
@@ -393,7 +393,7 @@ func TestPickerDefaultSwatch(t *testing.T) {
 	// The terminal theme's labels have no color (the terminal's own text
 	// color), and so does their swatch.
 	m = openPicker(t, colorsModel(t, config.Colors{}))
-	_, swatch, _ = find(t, cells(rawLine(t, m.View(), "secondary ")), "██")
+	_, swatch, _ = find(t, cells(rawLine(t, m.screen(), "secondary ")), "██")
 	if !allFg(swatch, "") {
 		t.Errorf("want the secondary swatch in the terminal's text color, got %+v", swatch)
 	}
@@ -412,7 +412,7 @@ func TestPickerTextSwatch(t *testing.T) {
 		{config.Colors{Theme: "nord", Primary: "#123456", SelectedText: "#ABCDEF"}, "#ABCDEF", "#123456"},
 	} {
 		m := openPicker(t, colorsModel(t, tc.colors))
-		_, aa, _ := find(t, cells(rawLine(t, m.View(), "selected_text ")), "Aa")
+		_, aa, _ := find(t, cells(rawLine(t, m.screen(), "selected_text ")), "Aa")
 		for _, c := range aa {
 			if c.fg != fg(tc.text) || c.bg != bg(tc.on) {
 				t.Errorf("%+v: want Aa in %s on %s, got fg %q bg %q", tc.colors, tc.text, tc.on, c.fg, c.bg)
@@ -440,7 +440,7 @@ func TestThemePickerSaves(t *testing.T) {
 	m = right(toRow(t, m, "primary"))
 	m = enter(m)
 	if m.mode != modeBrowse {
-		t.Fatalf("enter should close the picker:\n%s", plain(m.View()))
+		t.Fatalf("enter should close the picker:\n%s", plain(m.screen()))
 	}
 	want := config.Colors{Theme: ThemeNames()[1], Primary: "0"}
 	cfg, err := config.Load(m.configPath)
@@ -453,8 +453,8 @@ func TestThemePickerSaves(t *testing.T) {
 	if m.cfg.Colors != want || colorsOf(m.styles) != colorsOf(NewStyles(want, config.Menu{})) {
 		t.Error("the menu should keep the saved colors")
 	}
-	if !strings.Contains(plain(m.View()), "Appearance saved") {
-		t.Errorf("want a status:\n%s", plain(m.View()))
+	if !strings.Contains(plain(m.screen()), "Appearance saved") {
+		t.Errorf("want a status:\n%s", plain(m.screen()))
 	}
 }
 
@@ -465,8 +465,8 @@ func TestThemePickerUnchangedDoesNotSave(t *testing.T) {
 	if m.mode != modeBrowse || saved(m) {
 		t.Errorf("unchanged colors shouldn't save; mode %v, saved %v", m.mode, saved(m))
 	}
-	if !strings.Contains(plain(m.View()), "Appearance unchanged") {
-		t.Errorf("want a status:\n%s", plain(m.View()))
+	if !strings.Contains(plain(m.screen()), "Appearance unchanged") {
+		t.Errorf("want a status:\n%s", plain(m.screen()))
 	}
 	m = enter(left(right(openPicker(t, m))))
 	if saved(m) {
@@ -516,22 +516,22 @@ func TestThemePickerResetRow(t *testing.T) {
 func TestThemePickerHexField(t *testing.T) {
 	m := openPicker(t, colorsModel(t, config.Colors{}))
 	if m, _ = press(m, runes("#")); m.mode != modeTheme {
-		t.Errorf("# on the theme row should do nothing:\n%s", plain(m.View()))
+		t.Errorf("# on the theme row should do nothing:\n%s", plain(m.screen()))
 	}
 
 	m, _ = press(toRow(t, m, "primary"), runes("#"))
-	if m.mode == modeTheme || !strings.Contains(plain(m.View()), "primary: #") {
-		t.Fatalf("# should open a primary: field:\n%s", plain(m.View()))
+	if m.mode == modeTheme || !strings.Contains(plain(m.screen()), "primary: #") {
+		t.Fatalf("# should open a primary: field:\n%s", plain(m.screen()))
 	}
 	m, _ = press(m, runes("12"))
 	m = enter(m)
 	if m.mode == modeTheme || m.inputErr == "" {
-		t.Fatalf("#12 should be refused with the field open:\n%s", plain(m.View()))
+		t.Fatalf("#12 should be refused with the field open:\n%s", plain(m.screen()))
 	}
 	m, _ = press(clearField(m), runes("#ABCDEF"))
 	m = enter(m)
 	if m.mode != modeTheme {
-		t.Fatalf("a good value should go back to the picker:\n%s", plain(m.View()))
+		t.Fatalf("a good value should go back to the picker:\n%s", plain(m.screen()))
 	}
 	if line := pickerLine(t, m, "primary"); !strings.Contains(line, "#ABCDEF") {
 		t.Errorf("want the typed value on the row: %q", line)
@@ -544,12 +544,12 @@ func TestThemePickerHexField(t *testing.T) {
 	}
 
 	m, _ = press(m, runes("#"))
-	if !strings.Contains(plain(m.View()), "primary: #ABCDEF") {
-		t.Errorf("the field should start with the row's value:\n%s", plain(m.View()))
+	if !strings.Contains(plain(m.screen()), "primary: #ABCDEF") {
+		t.Errorf("the field should start with the row's value:\n%s", plain(m.screen()))
 	}
-	m, _ = press(m, tea.KeyMsg{Type: tea.KeyEsc})
+	m, _ = press(m, keyMsg("esc"))
 	if m.mode != modeTheme || !strings.Contains(pickerLine(t, m, "primary"), "#ABCDEF") {
-		t.Errorf("esc should go back to the picker with the draft kept:\n%s", plain(m.View()))
+		t.Errorf("esc should go back to the picker with the draft kept:\n%s", plain(m.screen()))
 	}
 }
 
@@ -557,8 +557,8 @@ func TestThemePickerHexField(t *testing.T) {
 func TestThemePickerHexFieldTakesANSI(t *testing.T) {
 	m := toRow(t, openPicker(t, colorsModel(t, config.Colors{Tertiary: "8"})), "tertiary")
 	m, _ = press(m, runes("#"))
-	if !strings.Contains(plain(m.View()), "tertiary: 8") {
-		t.Errorf("the field should start with the row's 8:\n%s", plain(m.View()))
+	if !strings.Contains(plain(m.screen()), "tertiary: 8") {
+		t.Errorf("the field should start with the row's 8:\n%s", plain(m.screen()))
 	}
 	m, _ = press(clearField(m), runes("6"))
 	m = enter(m)
@@ -571,10 +571,10 @@ func TestThemePickerHexFieldTakesANSI(t *testing.T) {
 func TestHexFieldKeepsLabelPrompt(t *testing.T) {
 	m := toRow(t, openPicker(t, colorsModel(t, config.Colors{})), "primary")
 	m, _ = press(m, runes("#"))
-	m, _ = press(m, tea.KeyMsg{Type: tea.KeyEsc})
-	m, _ = press(m, tea.KeyMsg{Type: tea.KeyEsc})
+	m, _ = press(m, keyMsg("esc"))
+	m, _ = press(m, keyMsg("esc"))
 	m, _ = press(m, runes("n"))
-	if view := plain(m.View()); !strings.Contains(view, "Label: NVIM") {
+	if view := plain(m.screen()); !strings.Contains(view, "Label: NVIM") {
 		t.Errorf("n should show the Label: field after using #:\n%s", view)
 	}
 }
@@ -600,8 +600,8 @@ func TestThemePickerFailedSave(t *testing.T) {
 	m.configPath = filepath.Join(blocker, "config.toml")
 
 	m = enter(right(openPicker(t, m)))
-	if m.mode != modeTheme || !strings.Contains(plain(m.View()), "couldn't save") {
-		t.Errorf("want the picker open with the error:\n%s", plain(m.View()))
+	if m.mode != modeTheme || !strings.Contains(plain(m.screen()), "couldn't save") {
+		t.Errorf("want the picker open with the error:\n%s", plain(m.screen()))
 	}
 	if m.cfg.Colors != (config.Colors{}) {
 		t.Errorf("a failed save shouldn't change the colors, got %+v", m.cfg.Colors)
@@ -627,7 +627,7 @@ func TestPickerSelectionRow(t *testing.T) {
 		t.Errorf("→ should show and preview bar: %q, block %v", line, hasBlock(m))
 	}
 	m = right(m)
-	if line := pickerLine(t, m, "selection"); !strings.Contains(line, "arrow") || hasBlock(m) || !strings.Contains(plain(m.View()), "› NVIM") {
+	if line := pickerLine(t, m, "selection"); !strings.Contains(line, "arrow") || hasBlock(m) || !strings.Contains(plain(m.screen()), "› NVIM") {
 		t.Errorf("→ from bar should show and preview arrow: %q, block %v", line, hasBlock(m))
 	}
 	m = right(m)
@@ -658,20 +658,20 @@ func TestPickerIconsRow(t *testing.T) {
 	m = toRow(t, m, "icons")
 	for _, step := range [][2]string{{"nerd", folderIcon}, {"dot", "●"}, {"triangle", "▸"}, {"diamond", "◆"}, {"star", "★"}} {
 		m = right(m)
-		if line := pickerLine(t, m, "icons"); !strings.Contains(line, step[0]) || !strings.Contains(m.View(), step[1]+" NVIM") {
-			t.Errorf("→ should show and preview %s: %q\n%s", step[0], line, plain(m.View()))
+		if line := pickerLine(t, m, "icons"); !strings.Contains(line, step[0]) || !strings.Contains(m.screen(), step[1]+" NVIM") {
+			t.Errorf("→ should show and preview %s: %q\n%s", step[0], line, plain(m.screen()))
 		}
 	}
 	m = right(m)
-	if line := pickerLine(t, m, "icons"); !strings.Contains(line, "off") || strings.Contains(m.View(), "★") {
-		t.Errorf("→ from star should wrap to off: %q\n%s", line, plain(m.View()))
+	if line := pickerLine(t, m, "icons"); !strings.Contains(line, "off") || strings.Contains(m.screen(), "★") {
+		t.Errorf("→ from star should wrap to off: %q\n%s", line, plain(m.screen()))
 	}
 	if line := pickerLine(t, left(m), "icons"); !strings.Contains(line, "star") {
 		t.Errorf("← from off should wrap to star: %q", line)
 	}
 	m, _ = press(right(m), runes("d"))
-	if line := pickerLine(t, m, "icons"); !strings.Contains(line, "off") || strings.Contains(m.View(), folderIcon) {
-		t.Errorf("d should turn icons off: %q\n%s", line, m.View())
+	if line := pickerLine(t, m, "icons"); !strings.Contains(line, "off") || strings.Contains(m.screen(), folderIcon) {
+		t.Errorf("d should turn icons off: %q\n%s", line, m.screen())
 	}
 	if m, _ = press(m, runes("#")); m.mode != modeTheme {
 		t.Error("# is for color rows only")
@@ -694,13 +694,13 @@ func TestPickerIconsKeepCursorAndFilter(t *testing.T) {
 		t.Errorf("want the filter kept with NOTES selected, got state %v, rows %q, selected %s",
 			m.list.FilterState(), shown(m), selected(m))
 	}
-	if !strings.Contains(m.View(), folderIcon+" NOTES") {
-		t.Errorf("want the filtered row with its icon:\n%s", m.View())
+	if !strings.Contains(plain(m.screen()), folderIcon+" NOTES") {
+		t.Errorf("want the filtered row with its icon:\n%s", m.screen())
 	}
-	m, _ = press(m, tea.KeyMsg{Type: tea.KeyEsc})
-	if m.list.FilterState() != list.FilterApplied || !slices.Equal(shown(m), []string{"NOTES"}) || strings.Contains(m.View(), folderIcon) {
+	m, _ = press(m, keyMsg("esc"))
+	if m.list.FilterState() != list.FilterApplied || !slices.Equal(shown(m), []string{"NOTES"}) || strings.Contains(m.screen(), folderIcon) {
 		t.Errorf("esc should drop the icons and keep the filter, got state %v, rows %q:\n%s",
-			m.list.FilterState(), shown(m), m.View())
+			m.list.FilterState(), shown(m), m.screen())
 	}
 }
 
@@ -712,7 +712,7 @@ func TestPickerSavesMenuOptions(t *testing.T) {
 	m = right(toRow(t, m, "selection"))
 	m = enter(right(toRow(t, m, "icons")))
 	if m.mode != modeBrowse {
-		t.Fatalf("enter should close the picker:\n%s", plain(m.View()))
+		t.Fatalf("enter should close the picker:\n%s", plain(m.screen()))
 	}
 	cfg, err := config.Load(m.configPath)
 	if err != nil {
@@ -724,11 +724,11 @@ func TestPickerSavesMenuOptions(t *testing.T) {
 	if cfg.Colors.Theme != "nord" || len(cfg.Bookmarks) != 2 {
 		t.Errorf("saving should keep the colors and bookmarks, got %+v, %d bookmarks", cfg.Colors, len(cfg.Bookmarks))
 	}
-	if hasBlock(m) || !strings.Contains(m.View(), folderIcon+" NVIM") {
-		t.Errorf("after saving, the menu should keep bar and icons:\n%s", m.View())
+	if hasBlock(m) || !strings.Contains(m.screen(), folderIcon+" NVIM") {
+		t.Errorf("after saving, the menu should keep bar and icons:\n%s", m.screen())
 	}
-	if !strings.Contains(plain(m.View()), "Appearance saved") {
-		t.Errorf("want a status:\n%s", plain(m.View()))
+	if !strings.Contains(plain(m.screen()), "Appearance saved") {
+		t.Errorf("want a status:\n%s", plain(m.screen()))
 	}
 
 	m = openPicker(t, m)
@@ -748,12 +748,12 @@ func TestPickerEscRestoresMenuOptions(t *testing.T) {
 	m := openPicker(t, colorsModel(t, config.Colors{}))
 	m = right(toRow(t, m, "selection"))
 	m = right(toRow(t, m, "icons"))
-	m, _ = press(m, tea.KeyMsg{Type: tea.KeyEsc})
+	m, _ = press(m, keyMsg("esc"))
 	if m.mode != modeBrowse || saved(m) {
 		t.Errorf("esc should close the picker without saving; mode %v, saved %v", m.mode, saved(m))
 	}
-	if !hasBlock(m) || strings.Contains(m.View(), folderIcon) || m.cfg.Menu != (config.Menu{}) {
-		t.Errorf("esc should restore block and no icons:\n%s", m.View())
+	if !hasBlock(m) || strings.Contains(m.screen(), folderIcon) || m.cfg.Menu != (config.Menu{}) {
+		t.Errorf("esc should restore block and no icons:\n%s", m.screen())
 	}
 }
 
@@ -773,7 +773,7 @@ func TestPickerHandEditedSelection(t *testing.T) {
 		t.Errorf("Bar should show as bar: %q", line)
 	}
 	m = enter(m)
-	if saved(m) || !strings.Contains(plain(m.View()), "Appearance unchanged") {
-		t.Errorf("Bar is unchanged and shouldn't save; saved %v:\n%s", saved(m), plain(m.View()))
+	if saved(m) || !strings.Contains(plain(m.screen()), "Appearance unchanged") {
+		t.Errorf("Bar is unchanged and shouldn't save; saved %v:\n%s", saved(m), plain(m.screen()))
 	}
 }

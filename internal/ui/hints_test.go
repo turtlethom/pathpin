@@ -16,7 +16,7 @@ const nordErr = "#bf616a" // nord's error color, from themes.go
 // helpLine is the visible text of the short help line, trimmed.
 func helpLine(t *testing.T, m Model) string {
 	t.Helper()
-	return strings.TrimSpace(plain(rawLine(t, m.View(), "↑/k up")))
+	return strings.TrimSpace(plain(rawLine(t, m.screen(), "↑/k up")))
 }
 
 // The help line is never wider than the window. When it doesn't fit, it
@@ -31,7 +31,7 @@ func TestHelpLineFits(t *testing.T) {
 		if m.list.Width() != w-2 {
 			t.Errorf("%d columns: the list is %d wide, want %d (a column of margin on each side)", w, m.list.Width(), w-2)
 		}
-		for l := range strings.SplitSeq(m.View(), "\n") {
+		for l := range strings.SplitSeq(m.screen(), "\n") {
 			if got := lipgloss.Width(l); got > w {
 				t.Errorf("%d columns: a line is %d wide: %q", w, got, plain(l))
 			}
@@ -59,14 +59,14 @@ const pickerKeysLine = "↑↓/jk row • ←→/hl change • # hex • d reset
 func TestPickerKeysLine(t *testing.T) {
 	for _, w := range []int{80, 40} {
 		m := openPicker(t, colorsModel(t, config.Colors{}).sized(w, 24))
-		line := strings.TrimSpace(plain(rawLine(t, m.View(), "↑↓/jk")))
+		line := strings.TrimSpace(plain(rawLine(t, m.screen(), "↑↓/jk")))
 		if w == 80 {
 			if line != pickerKeysLine {
 				t.Errorf("80 columns: want %q, got %q", pickerKeysLine, line)
 			}
 			continue
 		}
-		if got := lipgloss.Width(rawLine(t, m.View(), "↑↓/jk")); got > w {
+		if got := lipgloss.Width(rawLine(t, m.screen(), "↑↓/jk")); got > w {
 			t.Errorf("%d columns: the keys line is %d wide", w, got)
 		}
 		shown, cut := strings.CutSuffix(line, " …")
@@ -85,7 +85,7 @@ func TestTabKeysInHelp(t *testing.T) {
 	}
 	m, _ = press(m, runes("?"))
 	if !helpShows(m, "tab/⇧tab", "group") {
-		t.Errorf("? should list tab/⇧tab group:\n%s", plain(m.View()))
+		t.Errorf("? should list tab/⇧tab group:\n%s", plain(m.screen()))
 	}
 }
 
@@ -114,7 +114,7 @@ func TestHintColors(t *testing.T) {
 	withColor(t)
 	m := nordModel(t, config.Bookmark{Label: "NOTES", Path: "notes"}, config.Bookmark{Label: "WORK", Path: "work"})
 
-	help := rawLine(t, m.View(), "↑/k up")
+	help := rawLine(t, m.screen(), "↑/k up")
 	checkHint(t, "help line", help, "q", "quit")
 	checkHint(t, "help line", help, "/", "filter")
 	for _, c := range cells(help) {
@@ -124,7 +124,7 @@ func TestHintColors(t *testing.T) {
 	}
 
 	picker, _ := press(m, runes("t"))
-	line := rawLine(t, picker.View(), "reset")
+	line := rawLine(t, picker.screen(), "reset")
 	if want := pickerKeysLine; !strings.Contains(plain(line), want) {
 		t.Errorf("picker: want %q, got %q", want, plain(line))
 	}
@@ -132,14 +132,14 @@ func TestHintColors(t *testing.T) {
 	checkHint(t, "picker", line, "esc", "cancel")
 
 	field, _ := press(m, runes("n"))
-	line = rawLine(t, field.View(), "Label:")
+	line = rawLine(t, field.screen(), "Label:")
 	if !strings.Contains(plain(line), "enter save • esc cancel") {
 		t.Errorf("rename field: want enter save • esc cancel, got %q", plain(line))
 	}
 	checkHint(t, "rename field", line, "enter", "save")
 
 	group, _ := press(m, runes("m")) // no groups: on + new group…
-	line = rawLine(t, group.View(), "enter new group")
+	line = rawLine(t, group.screen(), "enter new group")
 	if !strings.Contains(plain(line), newGroupKeysLine) {
 		t.Errorf("group picker: want %q, got %q", newGroupKeysLine, plain(line))
 	}
@@ -161,13 +161,13 @@ func TestOnlyThemeColors(t *testing.T) {
 		}
 		return m
 	}
-	enterKey := tea.KeyMsg{Type: tea.KeyEnter}
+	enterKey := keyMsg("enter")
 	groups := groupModel(t).sized(80, 16) // several pages, so the page dots show
 	gone := nordModel(t, config.Bookmark{Label: "GONE", Path: "!gone"}, config.Bookmark{Label: "NOTES", Path: "notes"})
 
 	states := map[string]Model{
 		"browsing":        groups,
-		"next page":       keys(groups, tea.KeyMsg{Type: tea.KeyRight}),
+		"next page":       keys(groups, keyMsg("right")),
 		"typing a filter": keys(groups, runes("/"), runes("c")),
 		"no matches":      keys(groups, runes("/"), runes("zzz")),
 		"filter applied":  keys(groups, runes("/"), runes("cs"), enterKey),
@@ -176,15 +176,15 @@ func TestOnlyThemeColors(t *testing.T) {
 		"confirm":         keys(groups, runes("r")),
 		"rename field":    keys(groups, runes("n")),
 		"group picker":    keys(groups, runes("m")),
-		"new group field": keys(groups, runes("m"), tea.KeyMsg{Type: tea.KeyUp}, enterKey), // ↑ wraps to + new group…
+		"new group field": keys(groups, runes("m"), keyMsg("up"), enterKey), // ↑ wraps to + new group…
 		"ungroup confirm": keys(groups, runes("u")),
 		"picker":          keys(groups, runes("t")),
-		"hex field":       keys(groups, runes("t"), tea.KeyMsg{Type: tea.KeyDown}, runes("#")),
+		"hex field":       keys(groups, runes("t"), keyMsg("down"), runes("#")),
 		"missing + enter": keys(gone, enterKey),
 		"empty":           nordModel(t),
 	}
 	for name, m := range states {
-		for line := range strings.SplitSeq(m.View(), "\n") {
+		for line := range strings.SplitSeq(m.screen(), "\n") {
 			for _, c := range cells(line) {
 				if c.r == '█' {
 					continue // a picker swatch
@@ -195,8 +195,8 @@ func TestOnlyThemeColors(t *testing.T) {
 				}
 			}
 		}
-		if slices.Contains([]string{"browsing", "next page"}, name) && !strings.Contains(plain(m.View()), "•") {
-			t.Errorf("%s: want the page dots to show:\n%s", name, plain(m.View()))
+		if slices.Contains([]string{"browsing", "next page"}, name) && !strings.Contains(plain(m.screen()), "•") {
+			t.Errorf("%s: want the page dots to show:\n%s", name, plain(m.screen()))
 		}
 	}
 }

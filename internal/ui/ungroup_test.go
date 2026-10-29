@@ -17,12 +17,12 @@ import (
 func TestUngroupOneAsks(t *testing.T) {
 	m := selectLabel(t, groupModel(t), "BASH") // Config
 	if help, _ := press(m, runes("?")); !helpShows(help, "u", "ungroup") {
-		t.Errorf("the help page (?) should list u ungroup:\n%s", plain(help.View()))
+		t.Errorf("the help page (?) should list u ungroup:\n%s", plain(help.screen()))
 	}
-	for _, k := range []tea.KeyMsg{runes("n"), runes("q"), {Type: tea.KeyEsc}} {
+	for _, k := range []tea.KeyMsg{runes("n"), runes("q"), keyMsg("esc")} {
 		m, _ := press(m, runes("u"))
-		if m.mode != modeConfirm || !strings.Contains(plain(m.View()), "Ungroup BASH? y/N") {
-			t.Fatalf("u should ask Ungroup BASH? y/N:\n%s", plain(m.View()))
+		if m.mode != modeConfirm || !strings.Contains(plain(m.screen()), "Ungroup BASH? y/N") {
+			t.Fatalf("u should ask Ungroup BASH? y/N:\n%s", plain(m.screen()))
 		}
 		m, cmd := press(m, k)
 		if m.mode != modeBrowse || isQuit(cmd) {
@@ -42,7 +42,7 @@ func TestUngroupOneOnGroupTab(t *testing.T) {
 	m, _ = press(m, runes("u"))
 	m, _ = press(m, runes("y"))
 	if m.mode != modeBrowse {
-		t.Fatalf("y should close the prompt:\n%s", plain(m.View()))
+		t.Fatalf("y should close the prompt:\n%s", plain(m.screen()))
 	}
 	if got := groupOnDisk(t, m, "CS310"); got != "" {
 		t.Errorf("want CS310 ungrouped, got %q", got)
@@ -56,8 +56,8 @@ func TestUngroupOneOnGroupTab(t *testing.T) {
 	if got := shown(m); !slices.Equal(got, []string{"NOTES"}) {
 		t.Errorf("School after ungrouping CS310: got %q", got)
 	}
-	if !strings.Contains(plain(m.View()), "CS310 has no group now") {
-		t.Errorf("want the no-group status:\n%s", plain(m.View()))
+	if !strings.Contains(plain(m.screen()), "CS310 has no group now") {
+		t.Errorf("want the no-group status:\n%s", plain(m.screen()))
 	}
 
 	m, _ = press(m, runes("u")) // NOTES, the last in School
@@ -87,8 +87,8 @@ func TestUngroupOneOnAll(t *testing.T) {
 // does nothing. While a filter is being typed, u is a letter in it.
 func TestUngroupOneNothingToDo(t *testing.T) {
 	m, _ := press(selectLabel(t, groupModel(t), "PATHPIN"), runes("u"))
-	if m.mode != modeBrowse || !strings.Contains(plain(m.View()), "PATHPIN has no group") {
-		t.Errorf("want a note and no prompt:\n%s", plain(m.View()))
+	if m.mode != modeBrowse || !strings.Contains(plain(m.screen()), "PATHPIN has no group") {
+		t.Errorf("want a note and no prompt:\n%s", plain(m.screen()))
 	}
 	if _, err := os.Stat(m.configPath + ".bak"); err == nil {
 		t.Error("u on an ungrouped bookmark should not save")
@@ -112,7 +112,7 @@ func TestUIsNotPageUp(t *testing.T) {
 	for i := range 30 {
 		bookmarks = append(bookmarks, config.Bookmark{Label: fmt.Sprintf("B%02d", i), Path: fmt.Sprintf("b%02d", i)})
 	}
-	m, _ := press(newTestModel(t, bookmarks...), tea.KeyMsg{Type: tea.KeyRight})
+	m, _ := press(newTestModel(t, bookmarks...), keyMsg("right"))
 	if m.list.Paginator.Page != 1 {
 		t.Fatalf("→ should open the second page, got page %d", m.list.Paginator.Page)
 	}

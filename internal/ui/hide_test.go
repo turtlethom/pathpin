@@ -21,11 +21,11 @@ func pressDot(m Model) Model {
 // statusText is the list's status line (the bookmark count), trimmed.
 func statusText(t *testing.T, m Model) string {
 	t.Helper()
-	lines := strings.Split(plain(m.View()), "\n")
+	lines := strings.Split(plain(m.screen()), "\n")
 	title := slices.IndexFunc(lines, func(l string) bool { return strings.Contains(l, "PATHPIN") })
 	i := statusLine(lines, title)
 	if i < 0 {
-		t.Fatalf("no status line:\n%s", plain(m.View()))
+		t.Fatalf("no status line:\n%s", plain(m.screen()))
 	}
 	return strings.TrimSpace(lines[i])
 }
@@ -140,11 +140,11 @@ func TestDotAllGrouped(t *testing.T) {
 // nothing. On an empty menu it does nothing.
 func TestDotWithoutGroups(t *testing.T) {
 	m := pressDot(twoBookmarks(t))
-	if !strings.Contains(plain(m.View()), "No groups to show") || len(shown(m)) != 2 || tabBar(t, m) != nil {
-		t.Errorf("want a note and the menu as it was:\n%s", plain(m.View()))
+	if !strings.Contains(plain(m.screen()), "No groups to show") || len(shown(m)) != 2 || tabBar(t, m) != nil {
+		t.Errorf("want a note and the menu as it was:\n%s", plain(m.screen()))
 	}
-	if m := pressDot(newTestModel(t)); m.mode != modeBrowse || !strings.Contains(plain(m.View()), emptyMessage) {
-		t.Errorf(". on an empty menu should do nothing:\n%s", plain(m.View()))
+	if m := pressDot(newTestModel(t)); m.mode != modeBrowse || !strings.Contains(plain(m.screen()), emptyMessage) {
+		t.Errorf(". on an empty menu should do nothing:\n%s", plain(m.screen()))
 	}
 }
 
@@ -178,7 +178,7 @@ func TestLastGroupGoneShowsAll(t *testing.T) {
 	m, _ = press(m, runes("u"))
 	m, _ = press(m, runes("y"))
 	if tabBar(t, m) != nil || !slices.Equal(shown(m), []string{"SOLO", "NOTES"}) {
-		t.Errorf("want every bookmark and no tab bar:\n%s", plain(m.View()))
+		t.Errorf("want every bookmark and no tab bar:\n%s", plain(m.screen()))
 	}
 	if got := statusText(t, m); strings.Contains(got, "hidden") {
 		t.Errorf("nothing is hidden now, but the status says %q", got)
@@ -199,7 +199,7 @@ func TestHiddenNoteFits(t *testing.T) {
 // keeps an applied filter and the cursor.
 func TestTabWithOneTab(t *testing.T) {
 	m := pressDot(soloTab(t))
-	for _, k := range []tea.KeyMsg{runes("/"), runes("so"), {Type: tea.KeyEnter}} {
+	for _, k := range []tea.KeyMsg{runes("/"), runes("so"), keyMsg("enter")} {
 		m, _ = press(m, k)
 	}
 	m = pressTab(m)
@@ -260,7 +260,7 @@ func TestTabsRow(t *testing.T) {
 	if got := tabBar(t, m); len(got) != 4 {
 		t.Errorf("the row shouldn't change the menu's tabs, got %q", got)
 	}
-	if cancelled, _ := press(m, tea.KeyMsg{Type: tea.KeyEsc}); saved(cancelled) {
+	if cancelled, _ := press(m, keyMsg("esc")); saved(cancelled) {
 		t.Error("esc should save nothing")
 	}
 	m = enter(m)
@@ -303,8 +303,8 @@ func TestAddSavedWhileHidden(t *testing.T) {
 	if activeTab(t, m) != "School" || selected(m) != "CS310" || len(tabBar(t, m)) != 2 {
 		t.Errorf("want CS310 selected on School, still hidden; got %s on %s, tabs %q", selected(m), activeTab(t, m), tabBar(t, m))
 	}
-	if !strings.Contains(plain(m.View()), "already saved as CS310") {
-		t.Errorf("want the already-saved note:\n%s", plain(m.View()))
+	if !strings.Contains(plain(m.screen()), "already saved as CS310") {
+		t.Errorf("want the already-saved note:\n%s", plain(m.screen()))
 	}
 
 	m.cwd = pathOf(t, m, "PATHPIN")

@@ -1,0 +1,39 @@
+
+  «bg=#88c0d0| »«fg=#2e3440,bg=#88c0d0,bold|PATHPIN»«bg=#88c0d0| »
+
+   «fg=#616e88|All»  «bg=#88c0d0| »«fg=#2e3440,bg=#88c0d0,bold|Config»«bg=#88c0d0| »  «fg=#616e88|School»   «fg=#616e88|Other»
+  «fg=#616e88|─────────────────────────────────────────────────────────────────────────────»
+
+   «fg=#616e88|2 bookmarks»
+
+ «fg=#88c0d0|│»«bg=#88c0d0| »«fg=#2e3440,bg=#88c0d0,bold|BASH»«bg=#88c0d0| »
+ «fg=#88c0d0|│» «fg=#616e88,under|~/»«fg=#d8dee9,under|bash»
+
+   «fg=#d8dee9|GHOSTTY»
+   «fg=#616e88|~/»«fg=#d8dee9|ghostty»
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+   «fg=#88c0d0|↑/k»«fg=#616e88| up • »«fg=#88c0d0|↓/j»«fg=#616e88| down • »«fg=#88c0d0|/»«fg=#616e88| filter • »«fg=#88c0d0|a»«fg=#616e88| add • »«fg=#88c0d0|r»«fg=#616e88| remove • »«fg=#88c0d0|tab»«fg=#616e88| group • »«fg=#88c0d0|q»«fg=#616e88| quit • »«fg=#88c0d0|?»«fg=#616e88| help»

@@ -5,8 +5,6 @@ import (
 	"strings"
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
-
 	"github.com/turtlethom/pathpin/v2/internal/config"
 )
 
@@ -27,11 +25,11 @@ func labelOnDisk(t *testing.T, m Model, label string) (string, bool) {
 func TestRenameOpensLabelField(t *testing.T) {
 	m := newTestModel(t, config.Bookmark{Label: "Day Job", Path: "work"})
 	if help, _ := press(m, runes("?")); !helpShows(help, "n", "rename") {
-		t.Errorf("the help page (?) should mention n:\n%s", plain(help.View()))
+		t.Errorf("the help page (?) should mention n:\n%s", plain(help.screen()))
 	}
 	m, _ = press(m, runes("n"))
-	if m.mode == modeBrowse || !strings.Contains(plain(m.View()), "Label: Day Job") {
-		t.Errorf("n should open the field with Day Job in it:\n%s", plain(m.View()))
+	if m.mode == modeBrowse || !strings.Contains(plain(m.screen()), "Label: Day Job") {
+		t.Errorf("n should open the field with Day Job in it:\n%s", plain(m.screen()))
 	}
 
 	if m, _ := press(newTestModel(t), runes("n")); m.mode != modeBrowse {
@@ -48,7 +46,7 @@ func TestRenameSaves(t *testing.T) {
 	m, _ = press(clearField(m), runes("OS"))
 	m = enter(m)
 	if m.mode != modeBrowse {
-		t.Fatalf("enter should close the field:\n%s", plain(m.View()))
+		t.Fatalf("enter should close the field:\n%s", plain(m.screen()))
 	}
 	if group, ok := labelOnDisk(t, m, "OS"); !ok || group != "School" {
 		t.Errorf("want OS saved in School, got ok=%v group=%q", ok, group)
@@ -62,8 +60,8 @@ func TestRenameSaves(t *testing.T) {
 	if got := shown(m); len(got) != 2 || got[0] != "OS" {
 		t.Errorf("School after renaming: got %q", got)
 	}
-	if !strings.Contains(plain(m.View()), "Renamed CS310 to OS") {
-		t.Errorf("want a Renamed status:\n%s", plain(m.View()))
+	if !strings.Contains(plain(m.screen()), "Renamed CS310 to OS") {
+		t.Errorf("want a Renamed status:\n%s", plain(m.screen()))
 	}
 }
 
@@ -74,14 +72,14 @@ func TestRenameErrorsAndCancel(t *testing.T) {
 	m, _ = press(m, runes("n"))
 	m, _ = press(clearField(m), runes("notes"))
 	m = enter(m)
-	if m.mode == modeBrowse || !strings.Contains(plain(m.View()), "already exists") {
-		t.Errorf("a label in use should be refused with the field open:\n%s", plain(m.View()))
+	if m.mode == modeBrowse || !strings.Contains(plain(m.screen()), "already exists") {
+		t.Errorf("a label in use should be refused with the field open:\n%s", plain(m.screen()))
 	}
 	m = enter(clearField(m))
-	if m.mode == modeBrowse || !strings.Contains(plain(m.View()), "label is empty") {
-		t.Errorf("an empty label should be refused with the field open:\n%s", plain(m.View()))
+	if m.mode == modeBrowse || !strings.Contains(plain(m.screen()), "label is empty") {
+		t.Errorf("an empty label should be refused with the field open:\n%s", plain(m.screen()))
 	}
-	m, _ = press(m, tea.KeyMsg{Type: tea.KeyEsc})
+	m, _ = press(m, keyMsg("esc"))
 	if _, ok := labelOnDisk(t, m, "CS310"); m.mode != modeBrowse || !ok {
 		t.Error("esc should close the field with CS310 unchanged")
 	}
@@ -101,7 +99,7 @@ func TestRenameUnchangedDoesNotSave(t *testing.T) {
 	m, _ = press(m, runes("n"))
 	m = enter(m)
 	if m.mode != modeBrowse {
-		t.Fatalf("enter should close the field:\n%s", plain(m.View()))
+		t.Fatalf("enter should close the field:\n%s", plain(m.screen()))
 	}
 	if _, err := os.Stat(m.configPath + ".bak"); err == nil {
 		t.Error("an unchanged label should not save (a backup was written)")
@@ -114,8 +112,8 @@ func TestRenameUnchangedDoesNotSave(t *testing.T) {
 		t.Errorf("a case-only change should be saved as typed, got %+v", onDisk(t, m))
 	}
 	// The menu shows labels in uppercase, so say what changed.
-	if !strings.Contains(plain(m.View()), `CS310 is now saved as "cs310"`) {
-		t.Errorf("want a saved-as status for a case-only change:\n%s", plain(m.View()))
+	if !strings.Contains(plain(m.screen()), `CS310 is now saved as "cs310"`) {
+		t.Errorf("want a saved-as status for a case-only change:\n%s", plain(m.screen()))
 	}
 }
 
