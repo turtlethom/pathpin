@@ -193,11 +193,12 @@ func (m *Model) restyle(cfg *config.Config) {
 	}
 }
 
-// newField makes a text field for the bottom line. restyle colors it.
+// newField makes a text field for the bottom line. restyle colors it. It has
+// no CharLimit: labels and groups have none in the config, and SetValue would
+// cut a longer one to it (n, N), saving the cut name.
 func newField(prompt string) textinput.Model {
 	in := textinput.New()
 	in.Prompt = prompt
-	in.CharLimit = 40
 	return in
 }
 
