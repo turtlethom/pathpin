@@ -331,6 +331,105 @@ func TestColorRowCycles(t *testing.T) {
 	}
 }
 
+// An ANSI color's name is a palette slot's, not its hue (Monokai Pro's 12,
+// bright-blue, is orange), so while a color row shows one, its hint says the
+// terminal decides. A hex color keeps the row's own hint.
+func TestPickerPaletteHint(t *testing.T) {
+	m := openPicker(t, colorsModel(t, config.Colors{Theme: "nord", Primary: "12", Error: "#0047AB"}))
+	if line := pickerLine(t, m, "primary"); !strings.Contains(line, "bright-blue · 12") ||
+		!strings.Contains(line, "your terminal's palette") || strings.Contains(line, "title, selected row") {
+		t.Errorf("an ANSI color should keep its name and say the terminal decides: %q", line)
+	}
+	if line := pickerLine(t, m, "error"); !strings.Contains(line, "errors") || strings.Contains(line, "palette") {
+		t.Errorf("a hex color should keep the row's hint: %q", line)
+	}
+
+	// Only a name needs explaining: 16-255 (typed with #) have none, and a
+	// default row says theme's, even when the theme's color is ANSI.
+	m = openPicker(t, colorsModel(t, config.Colors{Tertiary: "200"}))
+	if line := pickerLine(t, m, "tertiary"); !strings.Contains(line, "paths") {
+		t.Errorf("an unnamed ANSI color should keep the row's hint: %q", line)
+	}
+	if line := pickerLine(t, m, "primary"); !strings.Contains(line, "title, selected row") {
+		t.Errorf("a default row should keep its hint on the terminal theme: %q", line)
+	}
+	m = toRow(t, openPicker(t, colorsModel(t, config.Colors{Theme: "nord", Primary: "12"})), "primary")
+
+	// Cycling onto a hex color brings the row's hint back.
+	for range 4 { // 12 → 13, 14, 15, then crimson
+		m = right(m)
+	}
+	if line := pickerLine(t, m, "primary"); !strings.Contains(line, "crimson") || !strings.Contains(line, "title, selected row") {
+		t.Errorf("a hex color should show the row's hint again: %q", line)
+	}
+}
+
+// A color row at its default shows the theme's color as a swatch before
+// theme's, so d's result can be seen.
+func TestPickerDefaultSwatch(t *testing.T) {
+	withColor(t)
+	m := openPicker(t, colorsModel(t, config.Colors{Theme: "nord"}))
+	for row, want := range map[string]string{
+		"primary":   nordAccent,
+		"secondary": nordText,
+		"tertiary":  nordMuted,
+	} {
+		_, swatch, after := find(t, cells(rawLine(t, m.View(), row+" ")), "██")
+		if !allFg(swatch, fg(want)) {
+			t.Errorf("%s: want a swatch in the theme's %s, got %+v", row, want, swatch)
+		}
+		if !strings.HasPrefix(strings.TrimSpace(string(runesOf(after))), "theme's") {
+			t.Errorf("%s: want theme's after the swatch, got %q", row, string(runesOf(after)))
+		}
+	}
+
+	// The swatch follows the theme row.
+	m = right(m) // nord → one-dark
+	_, swatch, _ := find(t, cells(rawLine(t, m.View(), "primary ")), "██")
+	if !allFg(swatch, fg("#56b6c2")) {
+		t.Errorf("after switching to one-dark, want its accent, got %+v", swatch)
+	}
+
+	// The terminal theme's labels have no color (the terminal's own text
+	// color), and so does their swatch.
+	m = openPicker(t, colorsModel(t, config.Colors{}))
+	_, swatch, _ = find(t, cells(rawLine(t, m.View(), "secondary ")), "██")
+	if !allFg(swatch, "") {
+		t.Errorf("want the secondary swatch in the terminal's text color, got %+v", swatch)
+	}
+}
+
+// selected_text's swatch is Aa on the accent, like the badge: a text color
+// alone says little (the terminal theme's 0 is often the background itself).
+// The accent is primary's, chosen or the theme's.
+func TestPickerTextSwatch(t *testing.T) {
+	withColor(t)
+	for _, tc := range []struct {
+		colors   config.Colors
+		text, on string
+	}{
+		{config.Colors{Theme: "nord"}, nordOnAccent, nordAccent},
+		{config.Colors{Theme: "nord", Primary: "#123456", SelectedText: "#ABCDEF"}, "#ABCDEF", "#123456"},
+	} {
+		m := openPicker(t, colorsModel(t, tc.colors))
+		_, aa, _ := find(t, cells(rawLine(t, m.View(), "selected_text ")), "Aa")
+		for _, c := range aa {
+			if c.fg != fg(tc.text) || c.bg != bg(tc.on) {
+				t.Errorf("%+v: want Aa in %s on %s, got fg %q bg %q", tc.colors, tc.text, tc.on, c.fg, c.bg)
+				break
+			}
+		}
+	}
+}
+
+func runesOf(cs []cell) []rune {
+	out := make([]rune, len(cs))
+	for i, c := range cs {
+		out[i] = c.r
+	}
+	return out
+}
+
 // enter saves the draft, keeping the bookmarks and other settings, and the
 // menu keeps the new colors.
 func TestThemePickerSaves(t *testing.T) {

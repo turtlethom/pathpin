@@ -24,7 +24,9 @@ type palette struct {
 }
 
 // terminalTheme uses the terminal's own palette, so it follows whatever theme
-// the terminal has. It's the default.
+// the terminal has. It's the default. Its text on the accent is 0 (black),
+// which nearly every palette makes dark; 15 (bright white) is too light to
+// read on most palettes' cyan.
 const terminalTheme = "terminal"
 
 // themes returns every theme by name. It's a function rather than a package
@@ -36,7 +38,7 @@ func themes() map[string]palette {
 	return map[string]palette{
 		terminalTheme: {
 			accent:   lipgloss.Color("6"),
-			onAccent: lipgloss.Color("15"),
+			onAccent: lipgloss.Color("0"),
 			text:     lipgloss.NoColor{},
 			muted:    lipgloss.Color("8"),
 			err:      lipgloss.Color("1"),
@@ -145,7 +147,8 @@ type namedColor struct {
 }
 
 // colorChoices lists the picker's colors: the terminal's 16 ANSI colors
-// first, which follow the terminal's own palette, then named colors in hue
+// first, which follow the terminal's own palette (their names are the slots'
+// names, so a palette can make "blue" any color), then named colors in hue
 // order (reds round to pinks, then browns, then neutrals light to dark), so
 // ←→ changes gradually. Each named color is one word no other color uses.
 // The picker shows name and value, since the value is what's saved.

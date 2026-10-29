@@ -235,6 +235,13 @@ Each color takes a hex color (`"#56B6C2"`) or an ANSI number from 0 to 255 (`"6"
 your terminal's palette) and overrides that one color of the theme. In the panel, colors cycle through your
 terminal's 16 and a set of named ones (`aqua · #56B6C2`); the file stores the value.
 
+The terminal's 16 are named after their slots (`bright-blue · 12`), but your terminal's theme
+decides how they look: Monokai Pro, for one, makes its blues orange. The panel says
+`your terminal's palette` next to them; for an exact color, pick a named one or type a hex with `#`.
+
+If the selected row's label is hard to read on the `terminal` theme (it's your palette's color 0
+on color 6), set `selected_text`, or try one of the presets.
+
 ### Styles
 
 | `selection` | The highlighted row |

@@ -184,15 +184,15 @@ func TestNewStyles(t *testing.T) {
 	}
 }
 
-// The selected row looks like fcd's: the label is a bold, bright white block on
+// The selected row looks like fcd's: the label is a bold block of ANSI 0 on
 // the primary color, and the path below it is underlined in the tertiary
 // color. Unselected rows keep the plain look.
 func TestSelectedRowStyle(t *testing.T) {
 	s := NewStyles(config.Colors{Primary: "#56B6C2", Tertiary: "#777777"}, config.Menu{})
 
 	title := s.item.SelectedTitle
-	if title.GetBackground() != lipgloss.Color("#56B6C2") || title.GetForeground() != lipgloss.Color("15") || !title.GetBold() {
-		t.Errorf("selected label: want bold ANSI 15 on primary, got fg %v bg %v bold %v",
+	if title.GetBackground() != lipgloss.Color("#56B6C2") || title.GetForeground() != lipgloss.Color("0") || !title.GetBold() {
+		t.Errorf("selected label: want bold ANSI 0 on primary, got fg %v bg %v bold %v",
 			title.GetForeground(), title.GetBackground(), title.GetBold())
 	}
 	if !title.GetBorderLeft() {
