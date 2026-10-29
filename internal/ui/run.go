@@ -7,7 +7,8 @@
 //     folder in the background).
 //   - Update receives every message (a key press, a window resize, a
 //     command's result) and returns the next Model plus any command to run.
-//   - View draws the Model as a string. Bubble Tea redraws after each Update.
+//   - View draws the Model: a tea.View, the text plus the terminal state it
+//     needs (here, the alternate screen). Bubble Tea redraws after each Update.
 //
 // A tea.Cmd is a function Bubble Tea runs in the background; the message it
 // returns is fed back into Update. Anything that may be slow (checking a
@@ -19,7 +20,7 @@
 // take *Model (resize, restyle, ...) edit that copy in place.
 //
 // There's one Model with a mode field (browse, a y/N prompt, a text field, the
-// picker) rather than nested components; Update and View switch on it. The
+// picker) rather than nested components; Update and render switch on it. The
 // list itself (rows, filter, pages, cursor) is bubbles/list, and the item and
 // delegate types in model.go tell it how to show a bookmark.
 //
@@ -39,7 +40,7 @@ package ui
 import (
 	"os"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/turtlethom/pathpin/v2/internal/config"
 )
@@ -49,13 +50,10 @@ import (
 // The menu draws on stderr in the alternate screen, so stdout stays free for
 // shell.WriteCDTarget. configPath is where the menu saves changes.
 func Run(cfg *config.Config, configPath string) (string, error) {
-	// The alternate screen is a separate full-screen buffer: when the menu
-	// closes, the terminal shows what it showed before.
-	program := tea.NewProgram(
-		New(cfg, configPath),
-		tea.WithAltScreen(),
-		tea.WithOutput(os.Stderr),
-	)
+	// The menu asks for the alternate screen in its View (a separate
+	// full-screen buffer: when the menu closes, the terminal shows what it
+	// showed before).
+	program := tea.NewProgram(New(cfg, configPath), tea.WithOutput(os.Stderr))
 	final, err := program.Run()
 	if err != nil {
 		return "", err

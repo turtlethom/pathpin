@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"image/color"
 	"io"
 	"os"
 	"path/filepath"
@@ -10,16 +11,16 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/list"
-	"github.com/charmbracelet/bubbles/textinput"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/list"
+	"charm.land/bubbles/v2/textinput"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"github.com/turtlethom/pathpin/v2/internal/config"
 )
 
-// mode is what the menu is doing right now. Update and View switch on it, so
+// mode is what the menu is doing right now. Update and render switch on it, so
 // each mode only handles its own keys.
 type mode int
 
@@ -138,6 +139,9 @@ func New(cfg *config.Config, configPath string) Model {
 	// list still says which keys apply for the short line.
 	l.SetShowHelp(false)
 	l.KeyMap.ShowFullHelp.SetHelp("?", "help")
+	// Bubbles v2.2 made the list's quit key v ("select"); pathpin quits with
+	// q and esc (handled in updateBrowse), and the help line says so.
+	l.KeyMap.Quit = key.NewBinding(key.WithKeys("q", "esc"), key.WithHelp("q", "quit"))
 	setHelpKeys(&l, tabs(cfg, groupsOnly) != nil)
 
 	group := newField("Group: ")
@@ -175,8 +179,7 @@ func (m *Model) restyle(cfg *config.Config) {
 	m.list.Styles.Title = lipgloss.NewStyle()
 	m.list.Styles.StatusBar = s.status
 	m.list.Styles.StatusEmpty = s.status
-	m.list.FilterInput.PromptStyle = s.filter
-	m.list.FilterInput.Cursor.Style = s.filter
+	m.list.FilterInput.SetStyles(s.field())
 	m.list.Styles.StatusBarFilterCount = s.muted
 	m.list.Styles.DividerDot = s.muted.SetString(" • ")
 	m.list.Styles.NoItems = s.muted
@@ -186,10 +189,7 @@ func (m *Model) restyle(cfg *config.Config) {
 	m.list.Paginator.InactiveDot = s.muted.Render("•")
 
 	for _, f := range []*textinput.Model{&m.input, &m.group, &m.hex} {
-		f.PromptStyle = s.filter
-		f.Cursor.Style = s.filter
-		f.PlaceholderStyle = s.muted
-		f.CompletionStyle = s.muted
+		f.SetStyles(s.field())
 	}
 }
 
@@ -316,7 +316,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.markGone(msg.path)
 		return m, nil
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		if msg.String() == "ctrl+c" {
 			return m, tea.Quit
 		}
@@ -359,7 +359,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m Model) updateBrowse(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// While typing a filter, every key belongs to the filter (v1 bug: q quit
 	// mid-filter), so only intercept keys outside it.
-	if key, ok := msg.(tea.KeyMsg); ok && m.list.FilterState() != list.Filtering {
+	if key, ok := msg.(tea.KeyPressMsg); ok && m.list.FilterState() != list.Filtering {
 		switch key.String() {
 		case "enter":
 			return m.choose()
@@ -375,7 +375,7 @@ func (m Model) updateBrowse(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.groupsOnly = !m.groupsOnly
 			return m, m.syncTabs() // a hidden All or Other moves to the first group
 		case "?":
-			// The page replaces the whole screen (see View); the list keeps its
+			// The page replaces the whole screen (see render); the list keeps its
 			// size, cursor and filter for when it closes.
 			m.mode = modeHelp
 			return m, nil
@@ -525,7 +525,7 @@ func (m Model) hiddenCount() int {
 
 // updateConfirm handles a y/N prompt: y or Y confirms, any other key cancels.
 func (m Model) updateConfirm(msg tea.Msg) (tea.Model, tea.Cmd) {
-	k, ok := msg.(tea.KeyMsg)
+	k, ok := msg.(tea.KeyPressMsg)
 	if !ok {
 		// Not a key (e.g. a status message timing out): the list still needs it.
 		var cmd tea.Cmd
@@ -680,7 +680,7 @@ func (m Model) startAdd() (tea.Model, tea.Cmd) {
 	m.input.Placeholder = config.SuggestLabel(m.cwd)
 	// With Width 0, textinput shows only a placeholder's first letter. Fit the
 	// suggestion; longer labels scroll sideways.
-	m.input.Width = max(len([]rune(m.input.Placeholder))+1, 12)
+	m.input.SetWidth(max(len([]rune(m.input.Placeholder))+1, 12))
 	return m, m.input.Focus() // Focus returns the command that blinks the cursor
 }
 
@@ -694,7 +694,7 @@ func (m Model) startAdd() (tea.Model, tea.Cmd) {
 // caller's copy, and every keystroke would be lost.
 func (m Model) updateField(msg tea.Msg, field func(*Model) *textinput.Model, save func(Model, string) (tea.Model, tea.Cmd)) (tea.Model, tea.Cmd) {
 	f := field(&m)
-	if k, ok := msg.(tea.KeyMsg); ok {
+	if k, ok := msg.(tea.KeyPressMsg); ok {
 		switch k.String() {
 		case "esc":
 			// The hex and new-group fields belong to a picker; esc goes back to it.
@@ -816,7 +816,7 @@ func (m Model) startRename() (tea.Model, tea.Cmd) {
 	m.input.Placeholder = "" // a's suggestion; renaming starts from the label instead
 	m.input.SetValue(it.Label)
 	m.input.CursorEnd()
-	m.input.Width = max(len([]rune(it.Label))+1, 12)
+	m.input.SetWidth(max(len([]rune(it.Label))+1, 12))
 	return m, m.input.Focus()
 }
 
@@ -868,10 +868,11 @@ func (m Model) startRenameGroup() (tea.Model, tea.Cmd) {
 	m.group.SetSuggestions(slices.Delete(slices.Clone(names), i, i+1))
 	m.group.SetValue(names[i])
 	m.group.CursorEnd()
-	m.group.Width = len(ungroupHint) + 1 // the field cuts its placeholder to its width
+	width := len(ungroupHint) + 1 // the field cuts its placeholder to its width
 	for _, n := range names {
-		m.group.Width = max(m.group.Width, len([]rune(n))+1)
+		width = max(width, len([]rune(n))+1)
 	}
+	m.group.SetWidth(width)
 	return m, m.group.Focus()
 }
 
@@ -998,12 +999,21 @@ func (m *Model) refuseGone(path string) tea.Cmd {
 	return m.list.NewStatusMessage(config.ContractHome(path) + " no longer exists")
 }
 
-// View draws the whole screen from the Model, top to bottom: the list (title,
-// tab bar, rows, status and page dots), the help, the picker when it's open,
-// then the bottom line; or, with ?, the help page instead of all of it. It
-// only reads the Model; Bubble Tea calls it after every Update and puts the
-// string on screen.
-func (m Model) View() string {
+// View is what Bubble Tea draws after every Update: the screen render makes,
+// in the alternate screen. A tea.View is the text plus the terminal state the
+// frame needs (alternate screen, cursor, window title), so the model says
+// what it wants each time, instead of the program setting it once at start.
+func (m Model) View() tea.View {
+	v := tea.NewView(m.render())
+	v.AltScreen = true
+	return v
+}
+
+// render draws the whole screen from the Model, top to bottom: the list
+// (title, tab bar, rows, status and page dots), the help, the picker when
+// it's open, then the bottom line; or, with ?, the help page instead of all of
+// it. It only reads the Model.
+func (m Model) render() string {
 	if m.mode == modeHelp {
 		return m.styles.app.Render(m.helpPage()) // the page replaces everything
 	}
@@ -1318,8 +1328,8 @@ func filterByRune(term string, targets []string) []list.Rank {
 type delegate struct {
 	list.DefaultDelegate
 	missing list.DefaultItemStyles
-	pathEnd lipgloss.TerminalColor // a path's last folder
-	tag     lipgloss.Style         // the group tag after a label
+	pathEnd color.Color    // a path's last folder
+	tag     lipgloss.Style // the group tag after a label
 }
 
 // Height is the lines per row, which the list uses to page.

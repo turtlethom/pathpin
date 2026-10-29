@@ -1,10 +1,13 @@
 package ui
 
 import (
+	"image/color"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/list"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/list"
+	"charm.land/bubbles/v2/textinput"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"github.com/turtlethom/pathpin/v2/internal/config"
 )
@@ -27,7 +30,7 @@ type Styles struct {
 	help    lipgloss.Style         // the help under the list
 	item    list.DefaultItemStyles // bubbles' row styles: Normal, Selected, Dimmed (while typing a filter)
 	missing list.DefaultItemStyles // rows whose folder is gone
-	pathEnd lipgloss.TerminalColor // a path's last folder: the label color
+	pathEnd color.Color            // a path's last folder: the label color
 	tabBar  lipgloss.Style         // the line of group tabs, and the rule under it
 	tab     lipgloss.Style         // a tab
 	tabOpen lipgloss.Style         // the open tab
@@ -224,11 +227,25 @@ func NewStyles(c config.Colors, menu config.Menu) Styles {
 }
 
 // pick is the color set in [colors], or fallback if it's unset or not a color.
-func pick(set string, fallback lipgloss.TerminalColor) lipgloss.TerminalColor {
+func pick(set string, fallback color.Color) color.Color {
 	if set != "" && validColor(set) {
 		return lipgloss.Color(set)
 	}
 	return fallback
+}
+
+// field is how pathpin's text fields look: the prompt and cursor in the
+// accent, placeholders and suggestions muted, typed text plain. A field only
+// shows while focused, but blurred gets the same look, since Bubbles' default
+// for it is gray text. The cursor is drawn in the field (the virtual cursor)
+// as a blinking block, as Bubbles' default does.
+func (s Styles) field() textinput.Styles {
+	st := textinput.StyleState{Prompt: s.filter, Placeholder: s.muted, Suggestion: s.muted}
+	return textinput.Styles{
+		Focused: st,
+		Blurred: st,
+		Cursor:  textinput.CursorStyle{Color: s.filter.GetForeground(), Shape: tea.CursorBlock, Blink: true},
+	}
 }
 
 // titleText is PATHPIN in the header style. (rule's line isn't part of it:

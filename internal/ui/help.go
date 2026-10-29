@@ -3,9 +3,9 @@ package ui
 import (
 	"strings"
 
-	"github.com/charmbracelet/bubbles/list"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/list"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 )
 
 // The help page (?) fills the screen with every key, in titled blocks laid
@@ -46,7 +46,7 @@ const helpGap = 6
 // and q close it, and every other key does nothing, so nothing changes
 // behind the page. (ctrl+c quits from any mode; see Update.)
 func (m Model) updateHelp(msg tea.Msg) (tea.Model, tea.Cmd) {
-	k, ok := msg.(tea.KeyMsg)
+	k, ok := msg.(tea.KeyPressMsg)
 	if !ok {
 		var cmd tea.Cmd
 		m.list, cmd = m.list.Update(msg) // status message timeouts

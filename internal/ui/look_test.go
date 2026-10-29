@@ -8,21 +8,16 @@ import (
 	"testing"
 	"unicode/utf8"
 
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"github.com/turtlethom/pathpin/v2/internal/config"
 )
 
-// withColor makes lipgloss draw 24-bit color for the rest of the test. Tests
-// run without a terminal, so lipgloss normally draws no color at all. The
-// setting is global, so tests in this package must not use t.Parallel.
-func withColor(t *testing.T) {
-	t.Helper()
-	prev := lipgloss.ColorProfile()
-	lipgloss.SetColorProfile(0) // termenv.TrueColor; untyped, so termenv stays an indirect dependency
-	t.Cleanup(func() { lipgloss.SetColorProfile(prev) })
-}
+// withColor marks a test that reads colors. Lip Gloss v2 always draws full
+// color (Bubble Tea adapts it to the terminal when it writes the screen), so
+// there's nothing to switch on; Lip Gloss v1 drew none without a terminal.
+func withColor(t *testing.T) { t.Helper() }
 
 // nordModel builds a menu in the nord theme, whose colors are all hex.
 func nordModel(t *testing.T, bookmarks ...config.Bookmark) Model {

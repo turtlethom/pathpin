@@ -5,10 +5,11 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
-	"github.com/charmbracelet/bubbles/list"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/list"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"github.com/turtlethom/pathpin/v2/internal/config"
 )
@@ -63,23 +64,30 @@ func press(m Model, key tea.KeyMsg) (Model, tea.Cmd) {
 	return next.(Model), cmd
 }
 
-func runes(s string) tea.KeyMsg { return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(s)} }
+// runes is typed text: a key press whose Text is s (Code is its first
+// character, as Bubble Tea sets it for a single key).
+func runes(s string) tea.KeyMsg {
+	r, _ := utf8.DecodeRuneInString(s)
+	return tea.KeyPressMsg{Code: r, Text: s}
+}
 
 // keyMsg is a special key by the name Bubble Tea gives it ("enter", "esc",
 // "shift+tab", "ctrl+c"). With runes, it's the one place tests build key
 // messages, so a new key type in Bubble Tea v2 changes only these two.
 func keyMsg(name string) tea.KeyMsg {
-	types := map[string]tea.KeyType{
-		"enter": tea.KeyEnter, "esc": tea.KeyEsc, "tab": tea.KeyTab, "shift+tab": tea.KeyShiftTab,
-		"up": tea.KeyUp, "down": tea.KeyDown, "left": tea.KeyLeft, "right": tea.KeyRight,
-		"shift+up": tea.KeyShiftUp, "shift+down": tea.KeyShiftDown,
-		"ctrl+c": tea.KeyCtrlC, "ctrl+u": tea.KeyCtrlU,
+	// A key is its code plus any modifiers held with it (shift, ctrl).
+	keys := map[string]tea.KeyPressMsg{
+		"enter": {Code: tea.KeyEnter}, "esc": {Code: tea.KeyEscape},
+		"tab": {Code: tea.KeyTab}, "shift+tab": {Code: tea.KeyTab, Mod: tea.ModShift},
+		"up": {Code: tea.KeyUp}, "down": {Code: tea.KeyDown}, "left": {Code: tea.KeyLeft}, "right": {Code: tea.KeyRight},
+		"shift+up": {Code: tea.KeyUp, Mod: tea.ModShift}, "shift+down": {Code: tea.KeyDown, Mod: tea.ModShift},
+		"ctrl+c": {Code: 'c', Mod: tea.ModCtrl}, "ctrl+u": {Code: 'u', Mod: tea.ModCtrl},
 	}
-	t, ok := types[name]
+	k, ok := keys[name]
 	if !ok {
 		panic("keyMsg: no key named " + name)
 	}
-	return tea.KeyMsg{Type: t}
+	return k
 }
 
 // keyMsg's names are the ones Bubble Tea gives its keys, which the menu
@@ -96,10 +104,10 @@ func TestKeyMsgNames(t *testing.T) {
 	}
 }
 
-// screen is what the menu draws, as text with its escape codes: View's
-// string. It's the one place tests read the view, so Bubble Tea v2's View
+// screen is what the menu draws, as text with its escape codes: the
+// content of View's tea.View. It's the one place tests read the view, so Bubble Tea v2's View
 // type changes only this.
-func (m Model) screen() string { return m.View() }
+func (m Model) screen() string { return m.View().Content }
 
 // isQuit runs cmd, so only call it when cmd can't be a timer.
 func isQuit(cmd tea.Cmd) bool {
@@ -135,6 +143,54 @@ func TestQuitKeysChooseNothing(t *testing.T) {
 		if !isQuit(cmd) {
 			t.Errorf("%s should quit", name)
 		}
+	}
+}
+
+// Only q, esc and ctrl+c quit, and the help line says q. Bubbles v2.2 made
+// the list's own quit key v ("select"), which pathpin sets back.
+func TestVDoesNotQuit(t *testing.T) {
+	m, cmd := press(twoBookmarks(t), runes("v"))
+	if isQuit(cmd) || m.mode != modeBrowse {
+		t.Errorf("v should do nothing, got mode %v, quit %v", m.mode, isQuit(cmd))
+	}
+	if help := plain(m.helpView()); !strings.Contains(help, "q quit") || strings.Contains(help, "select") {
+		t.Errorf("the help line should say q quit, got %q", help)
+	}
+}
+
+// Pasted text arrives as one message, not as keys, and lands in the field or
+// the filter being typed.
+func TestPaste(t *testing.T) {
+	m, _ := press(twoBookmarks(t), runes("n"))
+	next, _ := m.Update(tea.PasteMsg{Content: "-X"})
+	if got := next.(Model).input.Value(); got != "NVIM-X" {
+		t.Errorf("pasting into the rename field: got %q, want NVIM-X", got)
+	}
+	m, _ = press(twoBookmarks(t), runes("/"))
+	next, _ = m.Update(tea.PasteMsg{Content: "no"})
+	if got := next.(Model).list.FilterValue(); got != "no" {
+		t.Errorf("pasting into the filter: got %q, want no", got)
+	}
+}
+
+// With a filter applied, esc clears it and the menu stays open; only then
+// does esc quit. (The list gets this esc, and its own quit key is esc too: it
+// works because the list checks for clearing the filter first.)
+func TestEscClearsAppliedFilter(t *testing.T) {
+	m := twoBookmarks(t)
+	for _, k := range []tea.KeyMsg{runes("/"), runes("no"), keyMsg("enter")} {
+		m, _ = press(m, k)
+	}
+	if m.list.FilterState() != list.FilterApplied {
+		t.Fatalf("want a filter applied, state is %v", m.list.FilterState())
+	}
+	m, cmd := press(m, keyMsg("esc"))
+	if isQuit(cmd) || m.list.FilterState() != list.Unfiltered || len(m.list.VisibleItems()) != 2 {
+		t.Errorf("esc should clear the filter and keep the menu open, got state %v, %d rows, quit %v",
+			m.list.FilterState(), len(m.list.VisibleItems()), isQuit(cmd))
+	}
+	if _, cmd = press(m, keyMsg("esc")); !isQuit(cmd) {
+		t.Error("esc with no filter should quit")
 	}
 }
 
