@@ -287,6 +287,24 @@ func TestAddReservedLabelWarnsButSaves(t *testing.T) {
 	}
 }
 
+// The note suggests a spelling that jumps: Cobra matches command names
+// exactly, so any label but the command's own spelling works as typed.
+func TestAddReservedLabelSuggestsWorkingCase(t *testing.T) {
+	for label, want := range map[string]string{"ls": "LS", "LS": "LS", "Ls": "Ls"} {
+		t.Run(label, func(t *testing.T) {
+			e := newRootEnv(t)
+			t.Chdir(e.home)
+			_, stderr, err := e.run(t, noMenu(t), "add", label)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !strings.Contains(stderr, "'pathpin "+want+"'") {
+				t.Errorf("want 'pathpin %s' suggested, got %q", want, stderr)
+			}
+		})
+	}
+}
+
 // In tests stdout is a buffer, like a pipe: tab-separated absolute paths.
 func TestLsPiped(t *testing.T) {
 	e := newRootEnv(t)
