@@ -43,7 +43,7 @@ Each [release](https://github.com/turtlethom/pathpin/releases) also lists the ar
 `xattr -d com.apple.quarantine pathpin` once after unpacking: pathpin isn't signed by Apple, so
 macOS refuses to open a browser download otherwise (files fetched with `curl` aren't affected).
 
-Or build it from source (needs Go 1.25.4 or newer):
+Or build it from source (needs Go 1.26 or newer):
 
 ```bash
 git clone https://github.com/turtlethom/pathpin.git
@@ -297,10 +297,6 @@ group = "Config"
 
 ## Known limitations
 
-- **Slow start in some terminals.** Before it starts, pathpin asks the terminal for its background
-  color. A terminal that never answers (such as the Linux text console, or a session recorded with
-  `script`) makes every pathpin command wait about 5 seconds. Most terminals answer at once, and
-  inside tmux or screen nothing is asked. This comes from Bubble Tea v1 and should go away with v2.
 - **No copying over SSH.** `y` uses the clipboard of the machine pathpin runs on.
 - **Editor paths with spaces.** `$EDITOR` is split on spaces (so `code -w` works), which means an
   editor whose path contains a space won't start.

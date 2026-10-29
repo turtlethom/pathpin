@@ -1,19 +1,19 @@
 package ui
 
 import (
+	"image/color"
 	"math"
 	"slices"
-	"strconv"
 	"testing"
 
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
 
 	"github.com/turtlethom/pathpin/v2/internal/config"
 )
 
 // The colors a theme decides, read back from the styles built for it.
 type themeColors struct {
-	accent, onAccent, text, muted, err lipgloss.TerminalColor
+	accent, onAccent, text, muted, err color.Color
 }
 
 func colorsOf(s Styles) themeColors {
@@ -60,7 +60,7 @@ func TestPresetThemes(t *testing.T) {
 	seen := map[themeColors]string{}
 	for _, name := range ThemeNames()[1:] {
 		got := colorsOf(NewStyles(config.Colors{Theme: name}, config.Menu{}))
-		for slot, c := range map[string]lipgloss.TerminalColor{
+		for slot, c := range map[string]color.Color{
 			"accent": got.accent, "on accent": got.onAccent, "text": got.text, "muted": got.muted, "error": got.err,
 		} {
 			if !isHex(c) {
@@ -68,7 +68,7 @@ func TestPresetThemes(t *testing.T) {
 			}
 		}
 		if isHex(got.accent) && isHex(got.onAccent) {
-			if r := contrast(got.accent.(lipgloss.Color), got.onAccent.(lipgloss.Color)); r < 4.5 {
+			if r := contrast(got.accent, got.onAccent); r < 4.5 {
 				t.Errorf("%s: selected label contrast is %.1f:1, want at least 4.5:1", name, r)
 			}
 		}
@@ -112,31 +112,29 @@ func TestUnknownThemeFallsBack(t *testing.T) {
 	}
 }
 
-func isHex(c lipgloss.TerminalColor) bool {
-	s, ok := c.(lipgloss.Color)
-	if !ok || len(s) != 7 || s[0] != '#' {
-		return false
-	}
-	_, err := strconv.ParseUint(string(s[1:]), 16, 32)
-	return err == nil
+// isHex reports whether c is an exact color, as lipgloss.Color("#rrggbb")
+// makes; ANSI colors are other types.
+func isHex(c color.Color) bool {
+	_, ok := c.(color.RGBA)
+	return ok
 }
 
-// contrast is the WCAG contrast ratio between two "#RRGGBB" colors.
-func contrast(a, b lipgloss.Color) float64 {
+// contrast is the WCAG contrast ratio between two colors.
+func contrast(a, b color.Color) float64 {
 	la, lb := luminance(a), luminance(b)
 	return (math.Max(la, lb) + 0.05) / (math.Min(la, lb) + 0.05)
 }
 
-func luminance(c lipgloss.Color) float64 {
-	v, _ := strconv.ParseUint(string(c[1:]), 16, 32)
-	channel := func(shift uint) float64 {
-		x := float64((v>>shift)&0xFF) / 255
+func luminance(c color.Color) float64 {
+	r, g, b, _ := c.RGBA() // 16 bits per channel
+	channel := func(v uint32) float64 {
+		x := float64(v>>8) / 255
 		if x <= 0.03928 {
 			return x / 12.92
 		}
 		return math.Pow((x+0.055)/1.055, 2.4)
 	}
-	return 0.2126*channel(16) + 0.7152*channel(8) + 0.0722*channel(0)
+	return 0.2126*channel(r) + 0.7152*channel(g) + 0.0722*channel(b)
 }
 
 // A value that isn't a color is ignored, so the theme's color shows instead of

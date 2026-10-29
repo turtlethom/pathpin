@@ -32,7 +32,7 @@
    «fg=#d8dee9|secondary     »  «fg=#d8dee9|██»«fg=#616e88| theme's»                  «fg=#616e88|labels»
    «fg=#d8dee9|tertiary      »  «fg=#616e88|██ theme's»                  «fg=#616e88|paths»
    «fg=#d8dee9|selected_text »  «fg=#2e3440,bg=#88c0d0|Aa»«fg=#616e88| theme's»                  «fg=#616e88|text on primary»
-   «fg=#d8dee9|error         »  «fg=#bf6169|██»«fg=#616e88| theme's»                  «fg=#616e88|errors»
+   «fg=#d8dee9|error         »  «fg=#bf616a|██»«fg=#616e88| theme's»                  «fg=#616e88|errors»
    «fg=#d8dee9|selection     »  «fg=#d8dee9|block»                       «fg=#616e88|block, bar or arrow»
    «fg=#d8dee9|icons         »  «fg=#d8dee9|off»                         «fg=#616e88|nerd needs a Nerd Font»
    «fg=#d8dee9|header        »  «fg=#d8dee9|badge»                       «fg=#616e88|title and open tab»

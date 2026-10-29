@@ -91,7 +91,9 @@ straight to `handoff`.
 - **Model** is all the menu's state. Bubble Tea keeps the current one.
 - **Update** gets every message and returns the next Model, plus maybe a
   command. It has a value receiver: it changes its own copy and returns it.
-- **View** turns the Model into a string. It never changes anything.
+- **View** turns the Model into a `tea.View`: the text `render` draws, plus
+  the terminal state that frame needs (pathpin asks for the alternate
+  screen). It never changes anything.
 - **A command** (`tea.Cmd`) is a function Bubble Tea runs on another goroutine.
   Its return value is a message, which comes back into `Update`. Slow things
   (disk checks, the clipboard, the file manager) run as commands, and commands
@@ -134,7 +136,8 @@ component it returns.
 
 | Message | Sent by | Handled in |
 |---|---|---|
-| `tea.KeyMsg` | the keyboard | `Update`, then the mode's function |
+| `tea.KeyPressMsg` | the keyboard | `Update`, then the mode's function |
+| `tea.PasteMsg` | pasting (one message, not keys) | the open field, or the list's filter |
 | `tea.WindowSizeMsg` | Bubble Tea at start and on resize | `Update` → `resize` |
 | `folderGoneMsg` | `checkFolder` commands from `Init` | `Update` → `markGone` (dims the row) |
 | `copiedMsg`, `openedMsg` | the `y` and `o` commands (`actions.go`) | `actionDone` (status line) |
@@ -163,7 +166,7 @@ every save replaces the one `.bak` backup.
 
 ### What's on screen
 
-`View` stacks these, top to bottom:
+`render` stacks these, top to bottom:
 
 ```
  PATHPIN                       ← the list's title (titleText; withRule for rule)
@@ -197,7 +200,7 @@ Every change to the bookmarks ends in `syncTabs`, which keeps the tabs and the
 help keys in step, opens the first tab if the open one went away or was
 hidden, and turns `groupsOnly` off when no groups are left.
 
-With `?`, `View` draws `helpPage()` instead of all of the above (`help.go`):
+With `?`, `render` draws `helpPage()` instead of all of the above (`help.go`):
 the badge, every key in titled blocks laid out as a grid (`helpSections()` is
 the one list of them), and `? esc q close`. The list isn't drawn but keeps its
 cursor, filter and size, so closing the page puts the menu back as it was.
@@ -224,7 +227,7 @@ cursor, filter and size, so closing the page puts the menu back as it was.
 the `[colors]` overrides, and `[menu]`'s selection and header, into `Styles`.
 The title and the open tab depend on the header, so `titleText()` and
 `openTab()` draw them: the list gets the title pre-rendered (bracket needs two
-colors in it), and `View` adds rule's line after the list has drawn the title
+colors in it), and `render` adds rule's line after the list has drawn the title
 line (`withRule`), since the list puts status messages on that line too. The list, the delegate and the text
 fields each keep their own copies of some styles, so `restyle` is the one place
 that updates all of them; the picker calls it on every change to preview.
@@ -289,14 +292,16 @@ header = "text"
 
 - **Spec first:** each feature's tests were written before its code, so the
   test names describe the behavior (`TestTabsFitWindow`, `TestPickerKeysLine`).
-- **Menu tests** call `Update` directly with `tea.KeyMsg` values: no terminal,
-  no extra dependency. Helpers in `internal/ui/menu_test.go` and
+- **Menu tests** call `Update` directly with key messages: no terminal, no
+  extra dependency. They build keys only through `keyMsg("enter")` and
+  `runes("abc")`, and read the screen only through `m.screen()`, so a change in
+  Bubble Tea's key or view types touches those helpers alone. Helpers in `internal/ui/menu_test.go` and
   `folders_test.go`:
   - `newTestModel` makes a temp `$HOME`, creates the folders (a path starting
     with `!` is left missing), saves a config, starts the model, and sizes it
     to 80×24.
   - `press(m, key)` sends one key; `runes("abc")` makes a key message for
-    typed text.
+    typed text, `keyMsg("shift+tab")` one for a named key.
   - `started`, `runCmd`, `checkNow`, `deliver` and `unstarted` control when
     commands run, to test the background folder checks.
   - `onDisk` reads back what the menu saved.

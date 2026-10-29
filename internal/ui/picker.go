@@ -2,11 +2,12 @@ package ui
 
 import (
 	"fmt"
+	"image/color"
 	"slices"
 	"strings"
 
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"github.com/turtlethom/pathpin/v2/internal/config"
 )
@@ -32,16 +33,16 @@ type pickerRow struct {
 
 	// themeColor is the theme's color for a color row, shown as the
 	// default's swatch (nil on the other rows).
-	themeColor func(palette) lipgloss.TerminalColor
+	themeColor func(palette) color.Color
 }
 
 // appearanceRows is the picker's table, top to bottom. It's built fresh on
 // each call (cheap), so there's no package-level state.
 func appearanceRows() []pickerRow {
-	// color builds the five color rows. field points get and set at one
+	// colorRow builds the five color rows. field points get and set at one
 	// [colors] field (its address, &c.Primary), and slot picks the theme's
 	// color that field overrides.
-	color := func(key, hint string, field func(*config.Colors) *string, slot func(palette) lipgloss.TerminalColor) pickerRow {
+	colorRow := func(key, hint string, field func(*config.Colors) *string, slot func(palette) color.Color) pickerRow {
 		return pickerRow{
 			key: key, hint: hint, def: "theme's", values: colorValues, color: true,
 			get:        func(c *config.Config) string { return *field(&c.Colors) },
@@ -55,21 +56,21 @@ func appearanceRows() []pickerRow {
 			get: func(c *config.Config) string { return c.Colors.Theme },
 			set: func(c *config.Config, v string) { c.Colors.Theme = v },
 		},
-		color("primary", "title, selected row",
+		colorRow("primary", "title, selected row",
 			func(c *config.Colors) *string { return &c.Primary },
-			func(p palette) lipgloss.TerminalColor { return p.accent }),
-		color("secondary", "labels",
+			func(p palette) color.Color { return p.accent }),
+		colorRow("secondary", "labels",
 			func(c *config.Colors) *string { return &c.Secondary },
-			func(p palette) lipgloss.TerminalColor { return p.text }),
-		color("tertiary", "paths",
+			func(p palette) color.Color { return p.text }),
+		colorRow("tertiary", "paths",
 			func(c *config.Colors) *string { return &c.Tertiary },
-			func(p palette) lipgloss.TerminalColor { return p.muted }),
-		color("selected_text", "text on primary",
+			func(p palette) color.Color { return p.muted }),
+		colorRow("selected_text", "text on primary",
 			func(c *config.Colors) *string { return &c.SelectedText },
-			func(p palette) lipgloss.TerminalColor { return p.onAccent }),
-		color("error", "errors",
+			func(p palette) color.Color { return p.onAccent }),
+		colorRow("error", "errors",
 			func(c *config.Colors) *string { return &c.Error },
-			func(p palette) lipgloss.TerminalColor { return p.err }),
+			func(p palette) color.Color { return p.err }),
 		{
 			key: "selection", hint: "block, bar or arrow", def: selectBlock,
 			values: func() []string { return []string{"", selectBar, selectArrow} },
@@ -173,7 +174,7 @@ func (m Model) closePicker() Model {
 // updateTheme handles keys while the picker's rows are open (modeTheme).
 // Changes go to the draft and are previewed at once; only enter saves.
 func (m Model) updateTheme(msg tea.Msg) (tea.Model, tea.Cmd) {
-	k, ok := msg.(tea.KeyMsg)
+	k, ok := msg.(tea.KeyPressMsg)
 	if !ok {
 		var cmd tea.Cmd
 		m.list, cmd = m.list.Update(msg) // status message timeouts
@@ -263,7 +264,7 @@ func (m Model) startHex() (tea.Model, tea.Cmd) {
 	m.hex.Prompt = row.key + ": "
 	m.hex.SetValue(value)
 	m.hex.CursorEnd()
-	m.hex.Width = 12
+	m.hex.SetWidth(12)
 	return m, m.hex.Focus()
 }
 
@@ -357,7 +358,7 @@ func (m Model) pickerValue(i int) string {
 	row := appearanceRows()[i]
 	value := row.canon(row.get(&m.draft))
 	theme, _ := lookupTheme(m.draft.Colors.Theme) // an unknown theme draws as terminal
-	swatch := func(c lipgloss.TerminalColor) string {
+	swatch := func(c color.Color) string {
 		if row.key == "selected_text" {
 			// A text color alone says little (the terminal theme's 0 is often
 			// the background itself), so show it on the accent, as in the badge.

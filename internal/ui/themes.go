@@ -1,26 +1,27 @@
 package ui
 
 import (
+	"image/color"
 	"slices"
 	"strconv"
 	"strings"
 
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
 
 	"github.com/turtlethom/pathpin/v2/internal/config"
 )
 
-// palette is the five colors a theme decides. lipgloss.TerminalColor is an
-// interface: lipgloss.Color("6") is ANSI color 6, which the terminal's own
-// palette decides; lipgloss.Color("#56b6c2") is an exact color, which lipgloss
-// rounds to the nearest one on terminals with fewer colors; NoColor{} keeps
-// the terminal's default.
+// palette is the five colors a theme decides. Each is Go's color.Color (from
+// image/color), an interface: lipgloss.Color("6") is ANSI color 6, which the
+// terminal's own palette decides; lipgloss.Color("#56b6c2") is an exact color,
+// which Bubble Tea rounds to the nearest one when it draws on a terminal with
+// fewer colors; NoColor{} keeps the terminal's default.
 type palette struct {
-	accent   lipgloss.TerminalColor // selected row's block, title, filter
-	onAccent lipgloss.TerminalColor // text on the accent
-	text     lipgloss.TerminalColor // labels
-	muted    lipgloss.TerminalColor // paths, missing rows, status bar
-	err      lipgloss.TerminalColor // errors on the bottom line
+	accent   color.Color // selected row's block, title, filter
+	onAccent color.Color // text on the accent
+	text     color.Color // labels
+	muted    color.Color // paths, missing rows, status bar
+	err      color.Color // errors on the bottom line
 }
 
 // terminalTheme uses the terminal's own palette, so it follows whatever theme

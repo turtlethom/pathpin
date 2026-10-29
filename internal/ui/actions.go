@@ -8,7 +8,7 @@ import (
 	"runtime"
 	"strings"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/turtlethom/pathpin/v2/internal/config"
 )

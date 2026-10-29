@@ -37,4 +37,4 @@
 
 
    «fg=#88c0d0|↑/k»«fg=#616e88| up • »«fg=#88c0d0|↓/j»«fg=#616e88| down • »«fg=#88c0d0|/»«fg=#616e88| filter • »«fg=#88c0d0|a»«fg=#616e88| add • »«fg=#88c0d0|r»«fg=#616e88| remove • »«fg=#88c0d0|tab»«fg=#616e88| group • »«fg=#88c0d0|q»«fg=#616e88| quit • »«fg=#88c0d0|?»«fg=#616e88| help»
-   «fg=#88c0d0|Label: »cs310«fg=#88c0d0,reverse| »           «fg=#bf6169|label "cs310": bookmark already exists»
+   «fg=#88c0d0|Label: »cs310«fg=#88c0d0,reverse| »           «fg=#bf616a|label "cs310": bookmark already exists»

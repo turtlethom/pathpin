@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/charmbracelet/bubbles/list"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/list"
+	"charm.land/lipgloss/v2"
 
 	"github.com/turtlethom/pathpin/v2/internal/config"
 )

@@ -5,7 +5,7 @@ import (
 	"slices"
 	"strings"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/turtlethom/pathpin/v2/internal/config"
 )
@@ -52,7 +52,7 @@ func (m Model) startMove() (tea.Model, tea.Cmd) {
 // (modeGroupPick). The rows come from the config each time, never stored, so
 // they can't go stale.
 func (m Model) updateGroupPick(msg tea.Msg) (tea.Model, tea.Cmd) {
-	k, ok := msg.(tea.KeyMsg)
+	k, ok := msg.(tea.KeyPressMsg)
 	if !ok {
 		var cmd tea.Cmd
 		m.list, cmd = m.list.Update(msg) // status message timeouts
@@ -129,7 +129,7 @@ func (m Model) startNewGroup() (tea.Model, tea.Cmd) {
 	m.group.Prompt = "Group: "
 	m.group.Placeholder = ""
 	m.group.SetSuggestions(nil)
-	m.group.Width = 12 // longer names scroll sideways
+	m.group.SetWidth(12) // longer names scroll sideways
 	return m, m.group.Focus()
 }
 
