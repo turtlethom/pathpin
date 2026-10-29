@@ -146,3 +146,30 @@ func TestRenameKeepsSettings(t *testing.T) {
 		t.Errorf("renaming lost settings: menu %+v, colors %+v", cfg.Menu, cfg.Colors)
 	}
 }
+
+// Labels and groups have no length limit (pathpin add takes any), so n and N
+// show a long one whole, and enter with it unchanged saves nothing.
+func TestLongNamesSurviveRename(t *testing.T) {
+	label, group := strings.Repeat("x", 45), strings.Repeat("g", 45)
+	m := newTestModel(t, config.Bookmark{Label: label, Path: "notes", Group: group})
+
+	m, _ = press(m, runes("n"))
+	if got := m.input.Value(); got != label {
+		t.Errorf("n should fill the whole label, got %d characters", len(got))
+	}
+	m = enter(m)
+
+	m = pressN(pressTab(m)) // the group's tab
+	if got := m.group.Value(); got != group {
+		t.Errorf("N should fill the whole group, got %d characters", len(got))
+	}
+	m = enter(m)
+
+	if got, ok := labelOnDisk(t, m, label); !ok || got != group {
+		t.Errorf("want %s in %s unchanged on disk, got %+v", label, group, onDisk(t, m))
+	}
+	// newTestModel's save was the first, which makes no backup.
+	if _, err := os.Stat(m.configPath + ".bak"); err == nil {
+		t.Error("enter with the names unchanged should save nothing (the .bak would be replaced)")
+	}
+}
