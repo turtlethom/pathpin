@@ -121,7 +121,10 @@ func loadConfig(cmd *cobra.Command) (*config.Config, string, error) {
 	}
 	legacy, err := config.LegacyPath()
 	if err != nil {
-		return nil, "", err
+		// LegacyPath fails on a relative $XDG_CONFIG_HOME (which DefaultPath
+		// ignores). fcd used the same Go call, so it couldn't have saved a
+		// config there either: there's nothing to migrate.
+		legacy = ""
 	}
 	cfg, migrated, err := config.LoadOrMigrate(path, legacy)
 	if err != nil {
