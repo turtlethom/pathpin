@@ -29,8 +29,8 @@ func selected(m Model) string {
 var (
 	keyJ         = runes("J")
 	keyK         = runes("K")
-	keyShiftDown = tea.KeyMsg{Type: tea.KeyShiftDown}
-	keyShiftUp   = tea.KeyMsg{Type: tea.KeyShiftUp}
+	keyShiftDown = keyMsg("shift+down")
+	keyShiftUp   = keyMsg("shift+up")
 )
 
 // On All, J/K (and shift+↓/↑) move the highlighted bookmark one place down or
@@ -38,7 +38,7 @@ var (
 func TestReorderOnAll(t *testing.T) {
 	all := []string{"BASH", "CS310", "PATHPIN", "GHOSTTY", "NOTES", "CSSLAB"}
 	if help, _ := press(groupModel(t), runes("?")); !helpShows(help, "J/K", "reorder") {
-		t.Errorf("the help page (?) should mention J/K:\n%s", plain(help.View()))
+		t.Errorf("the help page (?) should mention J/K:\n%s", plain(help.screen()))
 	}
 	for name, keys := range map[string][2]tea.KeyMsg{"J/K": {keyJ, keyK}, "shift+arrows": {keyShiftDown, keyShiftUp}} {
 		m := selectLabel(t, groupModel(t), "CS310")
@@ -109,8 +109,8 @@ func TestReorderAndFilter(t *testing.T) {
 	m := groupModel(t)
 	m.list.SetFilterText("cs")
 	m, _ = press(m, keyJ)
-	if !strings.Contains(plain(m.View()), "Clear the filter to reorder") {
-		t.Errorf("want the clear-the-filter note:\n%s", plain(m.View()))
+	if !strings.Contains(plain(m.screen()), "Clear the filter to reorder") {
+		t.Errorf("want the clear-the-filter note:\n%s", plain(m.screen()))
 	}
 	if _, err := os.Stat(m.configPath + ".bak"); err == nil {
 		t.Error("nothing should be saved while filtered")

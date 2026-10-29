@@ -4,8 +4,6 @@ import (
 	"strings"
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
-
 	"github.com/turtlethom/pathpin/v2/internal/config"
 )
 
@@ -27,7 +25,7 @@ func arrowModel(t *testing.T, bookmarks ...config.Bookmark) Model {
 func TestArrowSelectionRendered(t *testing.T) {
 	withColor(t)
 	m := arrowModel(t)
-	line := rawLine(t, m.View(), "NOTES")
+	line := rawLine(t, m.screen(), "NOTES")
 	if got := strings.TrimSpace(plain(line)); !strings.HasPrefix(got, "› NOTES") {
 		t.Errorf("want the label line to start with › NOTES, got %q", got)
 	}
@@ -41,14 +39,14 @@ func TestArrowSelectionRendered(t *testing.T) {
 			t.Fatalf("want the label bold in the accent with no background, got fg %q bg %q bold %v", c.fg, c.bg, c.bold)
 		}
 	}
-	path := rawLine(t, m.View(), "~/notes")
+	path := rawLine(t, m.screen(), "~/notes")
 	if strings.ContainsAny(plain(path), "│›") {
 		t.Errorf("the path line should have no bar or arrow, got %q", plain(path))
 	}
 	if _, p, _ := find(t, cells(path), "notes"); !p[0].under {
 		t.Error("the selected path should be underlined, as in the other styles")
 	}
-	if got := strings.TrimSpace(plain(rawLine(t, m.View(), "WORK"))); got != "WORK" {
+	if got := strings.TrimSpace(plain(rawLine(t, m.screen(), "WORK"))); got != "WORK" {
 		t.Errorf("an unselected row should have no marker, got %q", got)
 	}
 }
@@ -58,7 +56,7 @@ func TestArrowSelectionRendered(t *testing.T) {
 func TestArrowSelectionMissingRow(t *testing.T) {
 	withColor(t)
 	m := arrowModel(t, config.Bookmark{Label: "GONE", Path: "!gone"}, config.Bookmark{Label: "NOTES", Path: "notes"})
-	line := rawLine(t, m.View(), "GONE")
+	line := rawLine(t, m.screen(), "GONE")
 	if got := strings.TrimSpace(plain(line)); !strings.HasPrefix(got, "› ") {
 		t.Errorf("want the › on the missing row, got %q", got)
 	}
@@ -111,13 +109,13 @@ func TestHeaderStyles(t *testing.T) {
 		{"rule", "PATHPIN", "All", "", accent, true, true},
 	} {
 		m := headerModel(t, tc.header)
-		view := m.View()
+		view := m.screen()
 		titleLine := rawLine(t, view, "PATHPIN")
 		if !strings.Contains(plain(titleLine), tc.title) {
 			t.Errorf("%s: want %q on the title line, got %q", tc.header, tc.title, plain(titleLine))
 		}
 		checkWord(t, tc.header+" title", titleLine, "PATHPIN", tc.fg, tc.bg, true, false)
-		if col, want := strings.Index(plain(titleLine), "PATHPIN"), strings.Index(plain(rawLine(t, groupModel(t).View(), "PATHPIN")), "PATHPIN"); col != want {
+		if col, want := strings.Index(plain(titleLine), "PATHPIN"), strings.Index(plain(rawLine(t, groupModel(t).screen(), "PATHPIN")), "PATHPIN"); col != want {
 			t.Errorf("%s: PATHPIN starts in column %d, want %d as with the badge", tc.header, col, want)
 		}
 		bar := strings.Split(view, "\n")[tabBarAt(t, m)]
@@ -151,9 +149,9 @@ func TestHeaderStyles(t *testing.T) {
 func TestHeaderTabsDontShift(t *testing.T) {
 	for _, header := range []string{"badge", "text", "bracket", "rule"} {
 		m := headerModel(t, header)
-		before := strings.TrimRight(plain(strings.Split(m.View(), "\n")[tabBarAt(t, m)]), " ")
+		before := strings.TrimRight(plain(strings.Split(m.screen(), "\n")[tabBarAt(t, m)]), " ")
 		m = pressTab(m)
-		after := strings.TrimRight(plain(strings.Split(m.View(), "\n")[tabBarAt(t, m)]), " ")
+		after := strings.TrimRight(plain(strings.Split(m.screen(), "\n")[tabBarAt(t, m)]), " ")
 		// The open tab's decoration moves; the names stay in their columns.
 		strip := strings.NewReplacer("[", " ", "]", " ")
 		if strip.Replace(after) != strip.Replace(before) {
@@ -167,17 +165,17 @@ func TestHeaderTabsDontShift(t *testing.T) {
 func TestHeaderEverywhere(t *testing.T) {
 	withColor(t)
 	empty := restartedWith(t, newTestModel(t), `header = "text"`)
-	checkWord(t, "empty menu", rawLine(t, empty.View(), "PATHPIN"), "PATHPIN", fg(nordAccent), "", true, false)
+	checkWord(t, "empty menu", rawLine(t, empty.screen(), "PATHPIN"), "PATHPIN", fg(nordAccent), "", true, false)
 	help, _ := press(headerModel(t, "text"), runes("?"))
-	checkWord(t, "? page", rawLine(t, help.View(), "PATHPIN"), "PATHPIN", fg(nordAccent), "", true, false)
+	checkWord(t, "? page", rawLine(t, help.screen(), "PATHPIN"), "PATHPIN", fg(nordAccent), "", true, false)
 }
 
 // Names match in any case, and an unknown header falls back to badge (cmd
 // warns about it before the menu opens).
 func TestHeaderFallback(t *testing.T) {
 	withColor(t)
-	checkWord(t, "Text", rawLine(t, headerModel(t, "Text").View(), "PATHPIN"), "PATHPIN", fg(nordAccent), "", true, false)
-	checkWord(t, "unknown", rawLine(t, headerModel(t, "banner").View(), "PATHPIN"), "PATHPIN", fg(nordOnAccent), bg(nordAccent), true, false)
+	checkWord(t, "Text", rawLine(t, headerModel(t, "Text").screen(), "PATHPIN"), "PATHPIN", fg(nordAccent), "", true, false)
+	checkWord(t, "unknown", rawLine(t, headerModel(t, "banner").screen(), "PATHPIN"), "PATHPIN", fg(nordOnAccent), bg(nordAccent), true, false)
 }
 
 // The picker's header row cycles badge → text → bracket → rule (wrapping),
@@ -195,7 +193,7 @@ func TestPickerHeaderRow(t *testing.T) {
 		}
 	}
 	m = right(m) // text
-	if _, title, _ := find(t, cells(rawLine(t, m.View(), "PATHPIN")), "PATHPIN"); title[0].bg != "" {
+	if _, title, _ := find(t, cells(rawLine(t, m.screen(), "PATHPIN")), "PATHPIN"); title[0].bg != "" {
 		t.Errorf("text should preview with no badge, got bg %q", title[0].bg)
 	}
 	m = enter(m)
@@ -206,7 +204,7 @@ func TestPickerHeaderRow(t *testing.T) {
 
 // pickerRowShown reports whether the picker shows the row with this name.
 func pickerRowShown(m Model, name string) bool {
-	for line := range strings.SplitSeq(plain(m.View()), "\n") {
+	for line := range strings.SplitSeq(plain(m.screen()), "\n") {
 		if f := strings.Fields(strings.ReplaceAll(line, "›", " ")); len(f) > 0 && f[0] == name {
 			return true
 		}
@@ -221,8 +219,8 @@ func TestThemePickerScrolls(t *testing.T) {
 	m := openPicker(t, groupModel(t).sized(80, 18))
 	check := func(step string) {
 		t.Helper()
-		v := plain(m.View())
-		if n := len(strings.Split(m.View(), "\n")); n > 18 {
+		v := plain(m.screen())
+		if n := len(strings.Split(m.screen(), "\n")); n > 18 {
 			t.Fatalf("%s: the menu is %d lines, want at most 18:\n%s", step, n, v)
 		}
 		if !strings.Contains(v, "PATHPIN") || !strings.Contains(v, "BASH") {
@@ -230,22 +228,22 @@ func TestThemePickerScrolls(t *testing.T) {
 		}
 	}
 	check("opened")
-	if v := plain(m.View()); !moreBelow.MatchString(v) || moreAbove.MatchString(v) || pickerRowShown(m, "tabs") {
+	if v := plain(m.screen()); !moreBelow.MatchString(v) || moreAbove.MatchString(v) || pickerRowShown(m, "tabs") {
 		t.Errorf("opened at the top: want a ↓ more line and tabs out of view:\n%s", v)
 	}
 	for i, name := range pickerRows[1:] {
-		m, _ = press(m, tea.KeyMsg{Type: tea.KeyDown})
+		m, _ = press(m, keyMsg("down"))
 		check("down to " + name)
 		if !strings.Contains(pickerLine(t, m, name), "›") {
-			t.Fatalf("step %d: want %s highlighted:\n%s", i+1, name, plain(m.View()))
+			t.Fatalf("step %d: want %s highlighted:\n%s", i+1, name, plain(m.screen()))
 		}
 	}
-	if v := plain(m.View()); !moreAbove.MatchString(v) || moreBelow.MatchString(v) {
+	if v := plain(m.screen()); !moreAbove.MatchString(v) || moreBelow.MatchString(v) {
 		t.Errorf("at the bottom: want only an ↑ more line:\n%s", v)
 	}
-	m, _ = press(m, tea.KeyMsg{Type: tea.KeyDown}) // wraps to theme
+	m, _ = press(m, keyMsg("down")) // wraps to theme
 	check("wrapped")
 	if !strings.Contains(pickerLine(t, m, "theme"), "›") {
-		t.Errorf("want theme highlighted after wrapping:\n%s", plain(m.View()))
+		t.Errorf("want theme highlighted after wrapping:\n%s", plain(m.screen()))
 	}
 }

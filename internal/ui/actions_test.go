@@ -50,8 +50,8 @@ func TestCopyPath(t *testing.T) {
 	if !slices.Equal(f.copied, []string{want}) {
 		t.Errorf("want %q copied, got %q", want, f.copied)
 	}
-	if m.mode != modeBrowse || m.chosen != "" || !strings.Contains(plain(m.View()), "Copied ~/.config/nvim") {
-		t.Errorf("want the menu open with a Copied status:\n%s", plain(m.View()))
+	if m.mode != modeBrowse || m.chosen != "" || !strings.Contains(plain(m.screen()), "Copied ~/.config/nvim") {
+		t.Errorf("want the menu open with a Copied status:\n%s", plain(m.screen()))
 	}
 }
 
@@ -59,8 +59,8 @@ func TestCopyPath(t *testing.T) {
 func TestCopyError(t *testing.T) {
 	f := &fakeActions{copyErr: errors.New("No clipboard tool found: install wl-clipboard or xclip")}
 	m := act(t, faked(twoBookmarks(t), f), f, runes("y"))
-	if !strings.Contains(plain(m.View()), "No clipboard tool found") || !m.messageErr {
-		t.Errorf("want the error on the bottom line:\n%s", plain(m.View()))
+	if !strings.Contains(plain(m.screen()), "No clipboard tool found") || !m.messageErr {
+		t.Errorf("want the error on the bottom line:\n%s", plain(m.screen()))
 	}
 }
 
@@ -79,14 +79,14 @@ func TestCopyMissingFolder(t *testing.T) {
 func TestOpenFolder(t *testing.T) {
 	f := &fakeActions{}
 	m := faked(twoBookmarks(t), f)
-	m, _ = press(m, tea.KeyMsg{Type: tea.KeyDown}) // NOTES
+	m, _ = press(m, keyMsg("down")) // NOTES
 	want := m.cfg.Bookmarks[1].Path
 	m = act(t, m, f, runes("o"))
 	if !slices.Equal(f.opened, []string{want}) {
 		t.Errorf("want %q opened, got %q", want, f.opened)
 	}
-	if m.mode != modeBrowse || m.chosen != "" || !strings.Contains(plain(m.View()), "Opened ~/notes") {
-		t.Errorf("want the menu open with an Opened status:\n%s", plain(m.View()))
+	if m.mode != modeBrowse || m.chosen != "" || !strings.Contains(plain(m.screen()), "Opened ~/notes") {
+		t.Errorf("want the menu open with an Opened status:\n%s", plain(m.screen()))
 	}
 }
 
@@ -94,8 +94,8 @@ func TestOpenFolder(t *testing.T) {
 func TestOpenError(t *testing.T) {
 	f := &fakeActions{openErr: errors.New("xdg-open: executable file not found in $PATH")}
 	m := act(t, faked(twoBookmarks(t), f), f, runes("o"))
-	if !strings.Contains(plain(m.View()), "xdg-open: executable file not found") || !m.messageErr {
-		t.Errorf("want the error on the bottom line:\n%s", plain(m.View()))
+	if !strings.Contains(plain(m.screen()), "xdg-open: executable file not found") || !m.messageErr {
+		t.Errorf("want the error on the bottom line:\n%s", plain(m.screen()))
 	}
 }
 
@@ -107,8 +107,8 @@ func TestOpenMissingFolder(t *testing.T) {
 	if len(f.opened) > 0 {
 		t.Errorf("o should not open a missing folder, opened %q", f.opened)
 	}
-	if !strings.Contains(plain(m.View()), "~/gone no longer exists") || !rowFor(t, m, "GONE").missing {
-		t.Errorf("want the folder reported and dimmed:\n%s", plain(m.View()))
+	if !strings.Contains(plain(m.screen()), "~/gone no longer exists") || !rowFor(t, m, "GONE").missing {
+		t.Errorf("want the folder reported and dimmed:\n%s", plain(m.screen()))
 	}
 }
 
@@ -141,7 +141,7 @@ func TestActionKeysInHelp(t *testing.T) {
 	m, _ := press(twoBookmarks(t), runes("?"))
 	for _, k := range [][2]string{{"e", "edit"}, {"y", "copy path"}, {"o", "open"}} {
 		if !helpShows(m, k[0], k[1]) {
-			t.Errorf("the help page should list %s %s:\n%s", k[0], k[1], plain(m.View()))
+			t.Errorf("the help page should list %s %s:\n%s", k[0], k[1], plain(m.screen()))
 		}
 	}
 }
@@ -201,7 +201,7 @@ func TestOpenCommand(t *testing.T) {
 func TestEditFolder(t *testing.T) {
 	f := &fakeActions{}
 	m := faked(twoBookmarks(t), f)
-	m, _ = press(m, tea.KeyMsg{Type: tea.KeyDown}) // NOTES
+	m, _ = press(m, keyMsg("down")) // NOTES
 	want := m.cfg.Bookmarks[1].Path
 	m, cmd := press(m, runes("e"))
 	if !slices.Equal(f.edited, []string{want}) || cmd == nil {
@@ -212,7 +212,7 @@ func TestEditFolder(t *testing.T) {
 	}
 	m = deliver(m, editedMsg{path: want})
 	if m.mode != modeBrowse || m.chosen != "" || m.messageErr || selected(m) != "NOTES" {
-		t.Errorf("after the editor, want the menu as it was:\n%s", plain(m.View()))
+		t.Errorf("after the editor, want the menu as it was:\n%s", plain(m.screen()))
 	}
 }
 
@@ -220,8 +220,8 @@ func TestEditFolder(t *testing.T) {
 // line.
 func TestEditError(t *testing.T) {
 	m := deliver(twoBookmarks(t), editedMsg{path: "/x", err: errors.New(`exec: "vi": executable file not found in $PATH`)})
-	if !m.messageErr || !strings.Contains(plain(m.View()), `exec: "vi": executable file not found`) {
-		t.Errorf("want the error on the bottom line:\n%s", plain(m.View()))
+	if !m.messageErr || !strings.Contains(plain(m.screen()), `exec: "vi": executable file not found`) {
+		t.Errorf("want the error on the bottom line:\n%s", plain(m.screen()))
 	}
 }
 
@@ -233,8 +233,8 @@ func TestEditMissingFolder(t *testing.T) {
 	if len(f.edited) > 0 {
 		t.Errorf("e should not edit a missing folder, edited %q", f.edited)
 	}
-	if !strings.Contains(plain(m.View()), "~/gone no longer exists") || !rowFor(t, m, "GONE").missing {
-		t.Errorf("want the folder reported and dimmed:\n%s", plain(m.View()))
+	if !strings.Contains(plain(m.screen()), "~/gone no longer exists") || !rowFor(t, m, "GONE").missing {
+		t.Errorf("want the folder reported and dimmed:\n%s", plain(m.screen()))
 	}
 }
 

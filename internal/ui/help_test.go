@@ -36,8 +36,8 @@ var helpBlocks = []helpBlock{
 func openHelp(t *testing.T, m Model) Model {
 	t.Helper()
 	m, _ = press(m, runes("?"))
-	if !strings.Contains(plain(m.View()), helpFooter) {
-		t.Fatalf("? should open the help page:\n%s", plain(m.View()))
+	if !strings.Contains(plain(m.screen()), helpFooter) {
+		t.Fatalf("? should open the help page:\n%s", plain(m.screen()))
 	}
 	return m
 }
@@ -122,9 +122,9 @@ func cut(line string, from, to int) string {
 // it has at most height lines.
 func checkFits(t *testing.T, name string, m Model, width, height int) {
 	t.Helper()
-	lines := strings.Split(m.View(), "\n")
+	lines := strings.Split(m.screen(), "\n")
 	if len(lines) > height {
-		t.Errorf("%s: %d lines, want at most %d:\n%s", name, len(lines), height, plain(m.View()))
+		t.Errorf("%s: %d lines, want at most %d:\n%s", name, len(lines), height, plain(m.screen()))
 	}
 	for _, l := range lines {
 		if w := lipgloss.Width(l); w > width {
@@ -137,7 +137,7 @@ func checkFits(t *testing.T, name string, m Model, width, height int) {
 // list, tabs and help line out of view. It fits the window.
 func TestHelpPageOpens(t *testing.T) {
 	m := openHelp(t, groupModel(t).sized(80, 24))
-	v := plain(m.View())
+	v := plain(m.screen())
 	// The rows, the status, the help line and the tab bar (Other is a tab).
 	for _, gone := range []string{"~/bash", "6 bookmarks", "↑/k up", "Other"} {
 		if strings.Contains(v, gone) {
@@ -166,7 +166,7 @@ func TestHelpPageBlocks(t *testing.T) {
 	for name, m := range map[string]Model{"groups": groupModel(t), "no groups": twoBookmarks(t)} {
 		m = openHelp(t, m.sized(80, 24))
 		for _, want := range helpBlocks {
-			b := findBlock(t, m.View(), want.title)
+			b := findBlock(t, m.screen(), want.title)
 			if !slices.Equal(b.rows, want.rows) {
 				t.Errorf("%s, %s: rows %q, want %q", name, want.title, b.rows, want.rows)
 			}
@@ -193,7 +193,7 @@ func TestHelpPageReflows(t *testing.T) {
 		var rows [][]string // titles by line, in order
 		at := -1
 		for _, want := range helpBlocks {
-			b := findBlock(t, m.View(), want.title)
+			b := findBlock(t, m.screen(), want.title)
 			if b.line != at {
 				rows, at = append(rows, nil), b.line
 			}
@@ -213,7 +213,7 @@ func TestHelpPageCut(t *testing.T) {
 	for _, size := range [][2]int{{80, 12}, {30, 24}} {
 		m := openHelp(t, groupModel(t).sized(size[0], size[1]))
 		checkFits(t, "cut", m, size[0], size[1])
-		v := plain(m.View())
+		v := plain(m.screen())
 		lines := strings.Split(strings.TrimRight(v, " \n"), "\n")
 		if len(lines) < 2 || strings.TrimSpace(lines[len(lines)-2]) != "…" || strings.TrimSpace(lines[len(lines)-1]) != helpFooter {
 			t.Errorf("%dx%d: want the page cut with … above the footer:\n%s", size[0], size[1], v)
@@ -225,29 +225,29 @@ func TestHelpPageCut(t *testing.T) {
 // filling the window. ctrl+c still quits. Other keys do nothing: enter
 // doesn't cd, r doesn't ask, j doesn't move the cursor.
 func TestHelpPageCloses(t *testing.T) {
-	for _, k := range []tea.KeyMsg{runes("?"), {Type: tea.KeyEsc}, runes("q")} {
+	for _, k := range []tea.KeyMsg{runes("?"), keyMsg("esc"), runes("q")} {
 		m := openHelp(t, groupModel(t).sized(80, 24))
 		m, cmd := press(m, k)
-		if isQuit(cmd) || m.mode != modeBrowse || strings.Contains(plain(m.View()), helpFooter) {
-			t.Errorf("%s should close the page without quitting:\n%s", k, plain(m.View()))
+		if isQuit(cmd) || m.mode != modeBrowse || strings.Contains(plain(m.screen()), helpFooter) {
+			t.Errorf("%s should close the page without quitting:\n%s", k, plain(m.screen()))
 		}
-		if n := len(strings.Split(m.View(), "\n")); n != 24 || !strings.Contains(plain(m.View()), "~/bash") {
-			t.Errorf("%s: want the menu back, 24 lines, got %d:\n%s", k, n, plain(m.View()))
+		if n := len(strings.Split(m.screen(), "\n")); n != 24 || !strings.Contains(plain(m.screen()), "~/bash") {
+			t.Errorf("%s: want the menu back, 24 lines, got %d:\n%s", k, n, plain(m.screen()))
 		}
 	}
 
 	m := openHelp(t, groupModel(t).sized(80, 24))
-	for _, k := range []tea.KeyMsg{{Type: tea.KeyEnter}, runes("r"), runes("j"), runes("a"), runes("m")} {
+	for _, k := range []tea.KeyMsg{keyMsg("enter"), runes("r"), runes("j"), runes("a"), runes("m")} {
 		var cmd tea.Cmd
 		m, cmd = press(m, k)
-		if isQuit(cmd) || m.chosen != "" || !strings.Contains(plain(m.View()), helpFooter) {
-			t.Fatalf("%s on the page should do nothing:\n%s", k, plain(m.View()))
+		if isQuit(cmd) || m.chosen != "" || !strings.Contains(plain(m.screen()), helpFooter) {
+			t.Fatalf("%s on the page should do nothing:\n%s", k, plain(m.screen()))
 		}
 	}
 	if m, _ = press(m, runes("?")); selected(m) != "BASH" {
 		t.Errorf("keys on the page shouldn't move the cursor, got %s", selected(m))
 	}
-	if _, cmd := press(openHelp(t, groupModel(t)), tea.KeyMsg{Type: tea.KeyCtrlC}); !isQuit(cmd) {
+	if _, cmd := press(openHelp(t, groupModel(t)), keyMsg("ctrl+c")); !isQuit(cmd) {
 		t.Error("ctrl+c should quit from the page")
 	}
 }
@@ -256,8 +256,8 @@ func TestHelpPageCloses(t *testing.T) {
 func TestQuestionMarkWhileFilteringIsTyped(t *testing.T) {
 	m, _ := press(groupModel(t), runes("/"))
 	m, _ = press(m, runes("?"))
-	if m.list.FilterValue() != "?" || strings.Contains(plain(m.View()), helpFooter) {
-		t.Errorf("want ? typed into the filter, got filter %q:\n%s", m.list.FilterValue(), plain(m.View()))
+	if m.list.FilterValue() != "?" || strings.Contains(plain(m.screen()), helpFooter) {
+		t.Errorf("want ? typed into the filter, got filter %q:\n%s", m.list.FilterValue(), plain(m.screen()))
 	}
 }
 
@@ -265,17 +265,17 @@ func TestQuestionMarkWhileFilteringIsTyped(t *testing.T) {
 // / filter. esc closes the page; the filter stays applied.
 func TestHelpPageFilterApplied(t *testing.T) {
 	m := groupModel(t).sized(80, 24)
-	for _, k := range []tea.KeyMsg{runes("/"), runes("cs"), {Type: tea.KeyEnter}} {
+	for _, k := range []tea.KeyMsg{runes("/"), runes("cs"), keyMsg("enter")} {
 		m, _ = press(m, k)
 	}
 	filtered := shown(m)
 	m = openHelp(t, m)
 	want := [][2]string{{"/", "filter"}, {"esc", "clear filter"}, {"t", "appearance"}, {"?", "help"}, {"q", "quit"}}
-	if b := findBlock(t, m.View(), "Menu"); !slices.Equal(b.rows, want) {
+	if b := findBlock(t, m.screen(), "Menu"); !slices.Equal(b.rows, want) {
 		t.Errorf("Menu with a filter applied: rows %q, want %q", b.rows, want)
 	}
-	m, _ = press(m, tea.KeyMsg{Type: tea.KeyEsc})
-	if strings.Contains(plain(m.View()), helpFooter) || !slices.Equal(shown(m), filtered) {
+	m, _ = press(m, keyMsg("esc"))
+	if strings.Contains(plain(m.screen()), helpFooter) || !slices.Equal(shown(m), filtered) {
 		t.Errorf("esc should close the page and keep the filter (%q), got %q", filtered, shown(m))
 	}
 }
@@ -285,7 +285,7 @@ func TestHelpPageFilterApplied(t *testing.T) {
 func TestHelpPageColors(t *testing.T) {
 	withColor(t)
 	m := openHelp(t, groupModel(t).sized(80, 24))
-	view := m.View()
+	view := m.screen()
 
 	_, title, _ := find(t, cells(rawLine(t, view, "Navigate")), "Navigate")
 	if !allFg(title, fg(nordText)) {
@@ -309,7 +309,7 @@ func TestHelpPageColors(t *testing.T) {
 	}
 
 	short := openHelp(t, groupModel(t).sized(80, 12))
-	_, dots, _ := find(t, cells(rawLine(t, short.View(), "…")), "…")
+	_, dots, _ := find(t, cells(rawLine(t, short.screen(), "…")), "…")
 	if !allFg(dots, fg(nordMuted)) {
 		t.Error("the … of a cut page should be muted")
 	}
@@ -345,10 +345,10 @@ func TestHelpPageCutsWholeRows(t *testing.T) {
 			m := openHelp(t, groupModel(t).sized(width, height))
 			checkFits(t, fmt.Sprintf("%dx%d", width, height), m, width, height)
 			for _, want := range helpBlocks {
-				if !slices.ContainsFunc(strings.Split(plain(m.View()), "\n"), func(l string) bool { return wordAt(l, want.title) >= 0 }) {
+				if !slices.ContainsFunc(strings.Split(plain(m.screen()), "\n"), func(l string) bool { return wordAt(l, want.title) >= 0 }) {
 					continue // cut off whole
 				}
-				if b := findBlock(t, m.View(), want.title); !slices.Equal(b.rows, want.rows) {
+				if b := findBlock(t, m.screen(), want.title); !slices.Equal(b.rows, want.rows) {
 					t.Errorf("%dx%d: %s shows rows %q, want all of %q", width, height, want.title, b.rows, want.rows)
 				}
 			}
@@ -362,8 +362,8 @@ func TestHelpPageCutsWholeRows(t *testing.T) {
 func TestHelpPageKeepsMessage(t *testing.T) {
 	m := openHelp(t, groupModel(t).sized(80, 24))
 	m = deliver(m, openedMsg{path: "/x", err: errors.New("no file manager found")})
-	m, _ = press(m, tea.KeyMsg{Type: tea.KeyEsc})
-	if !strings.Contains(plain(m.View()), "no file manager found") {
-		t.Errorf("want the error once the page closes:\n%s", plain(m.View()))
+	m, _ = press(m, keyMsg("esc"))
+	if !strings.Contains(plain(m.screen()), "no file manager found") {
+		t.Errorf("want the error once the page closes:\n%s", plain(m.screen()))
 	}
 }

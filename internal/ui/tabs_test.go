@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/charmbracelet/bubbles/list"
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/turtlethom/pathpin/v2/internal/config"
@@ -55,7 +54,7 @@ func shown(m Model) []string {
 func tabBar(t *testing.T, m Model) []string {
 	t.Helper()
 	if i := tabBarAt(t, m); i >= 0 {
-		bar, _, _ := strings.Cut(strings.Split(plain(m.View()), "\n")[i], "·") // not the hidden count
+		bar, _, _ := strings.Cut(strings.Split(plain(m.screen()), "\n")[i], "·") // not the hidden count
 		return strings.Fields(bar)
 	}
 	return nil
@@ -66,7 +65,7 @@ func tabBar(t *testing.T, m Model) []string {
 func hiddenNote(t *testing.T, m Model) string {
 	t.Helper()
 	if i := tabBarAt(t, m); i >= 0 {
-		_, note, _ := strings.Cut(strings.Split(plain(m.View()), "\n")[i], "·")
+		_, note, _ := strings.Cut(strings.Split(plain(m.screen()), "\n")[i], "·")
 		return strings.TrimSpace(note)
 	}
 	return ""
@@ -76,11 +75,11 @@ func hiddenNote(t *testing.T, m Model) string {
 // line right above the ─ rule, between the title and the status line.
 func tabBarAt(t *testing.T, m Model) int {
 	t.Helper()
-	lines := strings.Split(plain(m.View()), "\n")
+	lines := strings.Split(plain(m.screen()), "\n")
 	title := slices.IndexFunc(lines, func(l string) bool { return strings.Contains(l, "PATHPIN") })
 	status := statusLine(lines, title)
 	if title < 0 || status < 0 {
-		t.Fatalf("want the title line above the status line:\n%s", plain(m.View()))
+		t.Fatalf("want the title line above the status line:\n%s", plain(m.screen()))
 	}
 	for i := title + 2; i < status; i++ {
 		if strings.HasPrefix(strings.TrimSpace(lines[i]), "───") {
@@ -111,9 +110,9 @@ func activeTab(t *testing.T, m Model) string {
 	withColor(t)
 	i := tabBarAt(t, m)
 	if i < 0 {
-		t.Fatalf("no tab bar:\n%s", plain(m.View()))
+		t.Fatalf("no tab bar:\n%s", plain(m.screen()))
 	}
-	line := strings.Split(m.View(), "\n")[i]
+	line := strings.Split(m.screen(), "\n")[i]
 	var active []string
 	for _, name := range tabBar(t, m) {
 		_, cs, _ := find(t, cells(line), name)
@@ -132,12 +131,12 @@ func activeTab(t *testing.T, m Model) string {
 }
 
 func pressTab(m Model) Model {
-	m, _ = press(m, tea.KeyMsg{Type: tea.KeyTab})
+	m, _ = press(m, keyMsg("tab"))
 	return m
 }
 
 func pressShiftTab(m Model) Model {
-	m, _ = press(m, tea.KeyMsg{Type: tea.KeyShiftTab})
+	m, _ = press(m, keyMsg("shift+tab"))
 	return m
 }
 
@@ -165,8 +164,8 @@ func TestTabBar(t *testing.T) {
 	if got, want := shown(m), []string{"BASH", "CS310", "PATHPIN", "GHOSTTY", "NOTES", "CSSLAB"}; !slices.Equal(got, want) {
 		t.Errorf("All: got %q, want %q", got, want)
 	}
-	if !strings.Contains(plain(rawLine(t, m.View(), "quit")), "tab") {
-		t.Errorf("the help line should mention tab:\n%s", plain(m.View()))
+	if !strings.Contains(plain(rawLine(t, m.screen(), "quit")), "tab") {
+		t.Errorf("the help line should mention tab:\n%s", plain(m.screen()))
 	}
 
 	// Other only shows when some bookmarks are grouped and some aren't.
@@ -184,13 +183,13 @@ func TestTabBar(t *testing.T) {
 // are "".
 func headLines(t *testing.T, m Model) []string {
 	t.Helper()
-	lines := strings.Split(plain(m.View()), "\n")
+	lines := strings.Split(plain(m.screen()), "\n")
 	top := slices.IndexFunc(lines, func(l string) bool {
 		return strings.Contains(l, "PATHPIN") || strings.Contains(l, "Filter:")
 	})
 	status := statusLine(lines, top)
 	if top < 0 || status < 0 {
-		t.Fatalf("want the title line above the status line:\n%s", plain(m.View()))
+		t.Fatalf("want the title line above the status line:\n%s", plain(m.screen()))
 	}
 	head := lines[top : status+1]
 	for i, l := range head {
@@ -225,12 +224,12 @@ func TestTabsFitWindow(t *testing.T) {
 	m := groupModel(t).sized(80, 24)
 	filtering, _ := press(m, runes("/"))
 	for name, m := range map[string]Model{"browsing": m, "filtering": filtering, "resized": m.sized(80, 20)} {
-		lines := strings.Split(m.View(), "\n")
+		lines := strings.Split(m.screen(), "\n")
 		if len(lines) > m.height {
-			t.Errorf("%s: %d lines, want at most %d:\n%s", name, len(lines), m.height, plain(m.View()))
+			t.Errorf("%s: %d lines, want at most %d:\n%s", name, len(lines), m.height, plain(m.screen()))
 		}
-		if name != "filtering" && !strings.Contains(plain(m.View()), "q quit") {
-			t.Errorf("%s: the help line should show:\n%s", name, plain(m.View()))
+		if name != "filtering" && !strings.Contains(plain(m.screen()), "q quit") {
+			t.Errorf("%s: the help line should show:\n%s", name, plain(m.screen()))
 		}
 	}
 }
@@ -256,7 +255,7 @@ func TestOpenTabStyle(t *testing.T) {
 	withColor(t)
 	for _, sel := range []string{"block", "bar"} {
 		m := groupLook(t, sel)
-		line := cells(rawLine(t, m.View(), config.TabAll+" "))
+		line := cells(rawLine(t, m.screen(), config.TabAll+" "))
 		before, word, after := find(t, line, "All")
 		for _, c := range word {
 			if c.bg != bg(nordAccent) || c.fg != fg(nordOnAccent) {
@@ -272,7 +271,7 @@ func TestOpenTabStyle(t *testing.T) {
 				t.Fatalf("%s: want other tabs muted with no background, got fg %q bg %q", sel, c.fg, c.bg)
 			}
 		}
-		badge := firstBg(cells(rawLine(t, m.View(), "PATHPIN")), nordAccent)
+		badge := firstBg(cells(rawLine(t, m.screen(), "PATHPIN")), nordAccent)
 		if got := firstBg(line, nordAccent); got != badge || badge < 0 {
 			t.Errorf("%s: the open tab's block starts at column %d, want the badge's %d", sel, got, badge)
 		}
@@ -283,9 +282,9 @@ func TestOpenTabStyle(t *testing.T) {
 // stay where they are.
 func TestTabsDontShift(t *testing.T) {
 	m := groupModel(t)
-	before := strings.TrimRight(plain(rawLine(t, m.View(), config.TabAll+" ")), " ")
+	before := strings.TrimRight(plain(rawLine(t, m.screen(), config.TabAll+" ")), " ")
 	m = pressTab(m)
-	if after := strings.TrimRight(plain(rawLine(t, m.View(), config.TabAll+" ")), " "); after != before {
+	if after := strings.TrimRight(plain(rawLine(t, m.screen(), config.TabAll+" ")), " "); after != before {
 		t.Errorf("the tab bar moved:\nbefore %q\nafter  %q", before, after)
 	}
 }
@@ -295,10 +294,10 @@ func TestTabsDontShift(t *testing.T) {
 func TestTabRule(t *testing.T) {
 	withColor(t)
 	m := groupModel(t)
-	lines := strings.Split(m.View(), "\n")
+	lines := strings.Split(m.screen(), "\n")
 	bar := slices.IndexFunc(lines, func(l string) bool { return strings.HasPrefix(strings.TrimSpace(plain(l)), config.TabAll+" ") })
 	if bar < 0 || bar+1 >= len(lines) {
-		t.Fatalf("no tab bar:\n%s", plain(m.View()))
+		t.Fatalf("no tab bar:\n%s", plain(m.screen()))
 	}
 	rule := cells(lines[bar+1])
 	first := slices.IndexFunc(rule, func(c cell) bool { return c.r == '─' })
@@ -308,7 +307,7 @@ func TestTabRule(t *testing.T) {
 			last = i
 		}
 	}
-	badge := firstBg(cells(rawLine(t, m.View(), "PATHPIN")), nordAccent)
+	badge := firstBg(cells(rawLine(t, m.screen(), "PATHPIN")), nordAccent)
 	if first < 0 || first != badge || last != m.list.Width() {
 		t.Errorf("want the rule from column %d to %d, got %d to %d: %q", badge, m.list.Width(), first, last, plain(lines[bar+1]))
 	}
@@ -343,8 +342,8 @@ func TestTabSwitching(t *testing.T) {
 		if got := shown(m); !slices.Equal(got, s.labels) {
 			t.Errorf("%s: got %q, want %q", s.tab, got, s.labels)
 		}
-		if !strings.Contains(plain(m.View()), "2 bookmarks") && s.tab != "All" {
-			t.Errorf("%s: want the status line to count 2 bookmarks:\n%s", s.tab, plain(m.View()))
+		if !strings.Contains(plain(m.screen()), "2 bookmarks") && s.tab != "All" {
+			t.Errorf("%s: want the status line to count 2 bookmarks:\n%s", s.tab, plain(m.screen()))
 		}
 	}
 }
@@ -352,8 +351,8 @@ func TestTabSwitching(t *testing.T) {
 // enter on a group tab goes to the bookmark highlighted there.
 func TestEnterOnGroupTab(t *testing.T) {
 	m := pressTab(pressTab(groupModel(t))) // School
-	m, _ = press(m, tea.KeyMsg{Type: tea.KeyDown})
-	m, cmd := press(m, tea.KeyMsg{Type: tea.KeyEnter})
+	m, _ = press(m, keyMsg("down"))
+	m, cmd := press(m, keyMsg("enter"))
 	if filepath.Base(m.chosen) != "notes" || !isQuit(cmd) {
 		t.Errorf("want to cd into notes, chose %q", m.chosen)
 	}
@@ -448,7 +447,7 @@ func TestTabKeysAndFilter(t *testing.T) {
 func TestAddOnGroupTab(t *testing.T) {
 	m, _ := launchFrom(t, pressTab(pressTab(groupModel(t))), "projects/os") // School
 	m, _ = press(m, runes("a"))
-	m, _ = press(m, tea.KeyMsg{Type: tea.KeyEnter}) // takes the suggestion, OS
+	m, _ = press(m, keyMsg("enter")) // takes the suggestion, OS
 	got := onDisk(t, m)
 	if len(got) != 7 || got[6].Label != "OS" || got[6].Group != "School" {
 		t.Fatalf("want OS saved in School, got %+v", got[len(got)-1])
@@ -462,7 +461,7 @@ func TestAddOnGroupTab(t *testing.T) {
 
 	m, _ = launchFrom(t, groupModel(t), "projects/web") // All
 	m, _ = press(m, runes("a"))
-	m, _ = press(m, tea.KeyMsg{Type: tea.KeyEnter})
+	m, _ = press(m, keyMsg("enter"))
 	if got := onDisk(t, m); got[len(got)-1].Group != "" {
 		t.Errorf("adding on All should leave the bookmark ungrouped, got %q", got[len(got)-1].Group)
 	}
@@ -479,8 +478,8 @@ func TestAddAlreadySavedOnAnotherTab(t *testing.T) {
 	if sel, _ := m.list.SelectedItem().(item); sel.Label != "BASH" {
 		t.Errorf("BASH should be selected, got %q", sel.Label)
 	}
-	if !strings.Contains(plain(m.View()), "already saved as BASH") {
-		t.Errorf("want the already-saved message:\n%s", plain(m.View()))
+	if !strings.Contains(plain(m.screen()), "already saved as BASH") {
+		t.Errorf("want the already-saved message:\n%s", plain(m.screen()))
 	}
 }
 
@@ -488,10 +487,10 @@ func TestAddAlreadySavedOnAnotherTab(t *testing.T) {
 // empties, its tab goes away and the menu shows All.
 func TestRemoveOnGroupTab(t *testing.T) {
 	m := pressTab(pressTab(groupModel(t))) // School
-	m, _ = press(m, tea.KeyMsg{Type: tea.KeyDown})
+	m, _ = press(m, keyMsg("down"))
 	m, _ = press(m, runes("r"))
-	if !strings.Contains(m.View(), "Remove NOTES? y/N") {
-		t.Fatalf("want the prompt for NOTES:\n%s", plain(m.View()))
+	if !strings.Contains(m.screen(), "Remove NOTES? y/N") {
+		t.Fatalf("want the prompt for NOTES:\n%s", plain(m.screen()))
 	}
 	m, _ = press(m, runes("y"))
 	if got := shown(m); !slices.Equal(got, []string{"CS310"}) {
@@ -515,12 +514,12 @@ func TestRemoveOnGroupTab(t *testing.T) {
 func TestClearOnGroupTab(t *testing.T) {
 	m := pressTab(groupModel(t)) // Config
 	m, _ = press(m, runes("c"))
-	if !strings.Contains(m.View(), "Delete all 6 bookmarks? y/N") {
-		t.Fatalf("c should count every bookmark:\n%s", plain(m.View()))
+	if !strings.Contains(m.screen(), "Delete all 6 bookmarks? y/N") {
+		t.Fatalf("c should count every bookmark:\n%s", plain(m.screen()))
 	}
 	m, _ = press(m, runes("y"))
-	if len(onDisk(t, m)) != 0 || !strings.Contains(m.View(), emptyMessage) {
-		t.Errorf("want everything cleared and the empty state:\n%s", plain(m.View()))
+	if len(onDisk(t, m)) != 0 || !strings.Contains(m.screen(), emptyMessage) {
+		t.Errorf("want everything cleared and the empty state:\n%s", plain(m.screen()))
 	}
 }
 
@@ -528,7 +527,7 @@ func TestClearOnGroupTab(t *testing.T) {
 // last hints (q quit, ? help) aren't cut off. Every key is on the help page.
 func TestHelpFitsWidth(t *testing.T) {
 	for name, m := range map[string]Model{"no groups": twoBookmarks(t), "groups": groupModel(t)} {
-		line := strings.TrimRight(plain(rawLine(t, m.View(), "quit")), " ")
+		line := strings.TrimRight(plain(rawLine(t, m.screen(), "quit")), " ")
 		if w := lipgloss.Width(line); w > 80 {
 			t.Errorf("%s: help line is %d columns, want at most 80: %q", name, w, line)
 		}
@@ -539,7 +538,7 @@ func TestHelpFitsWidth(t *testing.T) {
 	help, _ := press(groupModel(t), runes("?"))
 	for _, k := range [][2]string{{"a", "add"}, {"r", "remove"}, {"c", "clear"}, {"m", "move to group"}, {"u", "ungroup"}, {"n", "rename"}, {"tab/⇧tab", "group"}} {
 		if !helpShows(help, k[0], k[1]) {
-			t.Errorf("the help page should list %s %s:\n%s", k[0], k[1], plain(help.View()))
+			t.Errorf("the help page should list %s %s:\n%s", k[0], k[1], plain(help.screen()))
 		}
 	}
 }
@@ -547,5 +546,5 @@ func TestHelpFitsWidth(t *testing.T) {
 // helpShows reports whether the view lists key with its description. The
 // help page lines its blocks up in columns, so any spacing counts.
 func helpShows(m Model, key, desc string) bool {
-	return regexp.MustCompile(`(^|\s)` + regexp.QuoteMeta(key) + `\s+` + regexp.QuoteMeta(desc)).MatchString(plain(m.View()))
+	return regexp.MustCompile(`(^|\s)` + regexp.QuoteMeta(key) + `\s+` + regexp.QuoteMeta(desc)).MatchString(plain(m.screen()))
 }

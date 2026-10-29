@@ -1,0 +1,24 @@
+
+  «bg=ansi:6| »«fg=ansi:0,bg=ansi:6,bold|PATHPIN»«bg=ansi:6| »
+
+   «fg=ansi:8|2 bookmarks»
+
+ «fg=ansi:6|│»«bg=ansi:6| »«fg=ansi:0,bg=ansi:6,bold|NVIM»«bg=ansi:6| »
+ «fg=ansi:6|│» «fg=ansi:8,under|~/.config/»«under|nvim»
+
+   NOTES
+   «fg=ansi:8|~/»notes
+
+
+
+ «fg=ansi:6,bold|› theme         ◂ »terminal«fg=ansi:6,bold| ▸»
+   primary         «fg=ansi:6|██»«fg=ansi:8| theme's»                  «fg=ansi:8|title, selected row»
+   secondary       ██«fg=ansi:8| theme's»                  «fg=ansi:8|labels»
+   tertiary        «fg=ansi:8|██ theme's»                  «fg=ansi:8|paths»
+   selected_text   «fg=ansi:0,bg=ansi:6|Aa»«fg=ansi:8| theme's»                  «fg=ansi:8|text on primary»
+   error           «fg=ansi:1|██»«fg=ansi:8| theme's»                  «fg=ansi:8|errors»
+   selection       block                       «fg=ansi:8|block, bar or arrow»
+   icons           off                         «fg=ansi:8|nerd needs a Nerd Font»
+   header          badge                       «fg=ansi:8|title and open tab»
+   tabs            all                         «fg=ansi:8|every tab, or groups only»
+   «fg=ansi:6|↑↓/jk»«fg=ansi:8| row • »«fg=ansi:6|←→/hl»«fg=ansi:8| change • »«fg=ansi:6|#»«fg=ansi:8| hex • »«fg=ansi:6|d»«fg=ansi:8| reset • »«fg=ansi:6|enter»«fg=ansi:8| save • »«fg=ansi:6|esc»«fg=ansi:8| cancel»

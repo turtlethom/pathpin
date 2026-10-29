@@ -5,7 +5,6 @@ import (
 	"strings"
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/turtlethom/pathpin/v2/internal/config"
@@ -33,7 +32,7 @@ func TestIconsOffByDefault(t *testing.T) {
 		config.Bookmark{Label: "HOME", Path: ""},
 		config.Bookmark{Label: "GONE", Path: "!old"},
 	)
-	view := m.View()
+	view := m.screen()
 	for _, icon := range []string{folderIcon, homeIcon, missingIcon} {
 		if strings.Contains(view, icon) {
 			t.Errorf("icons are off by default, but the view has %q:\n%s", icon, view)
@@ -50,7 +49,7 @@ func TestIconsBeforeLabels(t *testing.T) {
 		config.Bookmark{Label: "HOME", Path: ""},
 		config.Bookmark{Label: "GONE", Path: "!old"},
 	)
-	view := m.View()
+	view := m.screen()
 	for _, want := range []string{folderIcon + " NOTES", homeIcon + " HOME", missingIcon + " GONE (missing)"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("want %q in the view:\n%s", want, view)
@@ -63,8 +62,8 @@ func TestIconsBeforeLabels(t *testing.T) {
 	// Long labels still fit the window with the icon.
 	long := iconModel(t, config.Bookmark{Label: strings.Repeat("LONG", 20), Path: "a"}).sized(30, 24)
 	long.list.SetShowHelp(false) // see TestLongLabelFitsWidth
-	if w := lipgloss.Width(long.View()); w > 30 {
-		t.Errorf("view is %d wide, window is 30:\n%s", w, long.View())
+	if w := lipgloss.Width(long.screen()); w > 30 {
+		t.Errorf("view is %d wide, window is 30:\n%s", w, long.screen())
 	}
 }
 
@@ -117,9 +116,9 @@ func TestIconTurnsMissingOnEnter(t *testing.T) {
 	if err := os.Remove(m.cfg.Bookmarks[0].Path); err != nil {
 		t.Fatal(err)
 	}
-	m, _ = press(m, tea.KeyMsg{Type: tea.KeyEnter})
-	if !strings.Contains(m.View(), missingIcon+" NOTES (missing)") {
-		t.Errorf("want ✗ on the row enter found missing:\n%s", m.View())
+	m, _ = press(m, keyMsg("enter"))
+	if !strings.Contains(m.screen(), missingIcon+" NOTES (missing)") {
+		t.Errorf("want ✗ on the row enter found missing:\n%s", m.screen())
 	}
 }
 
@@ -127,9 +126,9 @@ func TestIconTurnsMissingOnEnter(t *testing.T) {
 func TestAddedRowHasIcon(t *testing.T) {
 	m, _ := launchFrom(t, iconModel(t, config.Bookmark{Label: "NOTES", Path: "notes"}), "projects/app")
 	m, _ = press(m, runes("a"))
-	m, _ = press(m, tea.KeyMsg{Type: tea.KeyEnter})
-	if !strings.Contains(m.View(), folderIcon+" APP") {
-		t.Errorf("want the new row with a folder icon:\n%s", m.View())
+	m, _ = press(m, keyMsg("enter"))
+	if !strings.Contains(m.screen(), folderIcon+" APP") {
+		t.Errorf("want the new row with a folder icon:\n%s", m.screen())
 	}
 }
 
@@ -150,7 +149,7 @@ func TestMenuChangesKeepSettings(t *testing.T) {
 	}
 
 	m, _ = press(m, runes("a"))
-	m, _ = press(m, tea.KeyMsg{Type: tea.KeyEnter})
+	m, _ = press(m, keyMsg("enter"))
 	settingsOnDisk("adding")
 
 	m, _ = press(m, runes("r"))
@@ -179,7 +178,7 @@ func TestIconSets(t *testing.T) {
 		"Star":     {"★", "⌂"},
 	} {
 		m := restartedWith(t, newTestModel(t, iconBookmarks()...), `icons = "`+set+`"`)
-		view := plain(m.View())
+		view := plain(m.screen())
 		for _, s := range []string{want[0] + " NOTES", want[1] + " HOME", missingIcon + " GONE (missing)"} {
 			if !strings.Contains(view, s) {
 				t.Errorf("%s: want %q in the view:\n%s", set, s, view)
@@ -188,8 +187,8 @@ func TestIconSets(t *testing.T) {
 	}
 	m := restartedWith(t, newTestModel(t, iconBookmarks()...), `icons = "off"`)
 	for _, icon := range []string{folderIcon, homeIcon, missingIcon, "⌂"} {
-		if strings.Contains(m.View(), icon) {
-			t.Errorf("off: want no icons, got %q:\n%s", icon, plain(m.View()))
+		if strings.Contains(m.screen(), icon) {
+			t.Errorf("off: want no icons, got %q:\n%s", icon, plain(m.screen()))
 		}
 	}
 }
@@ -199,8 +198,8 @@ func TestIconSets(t *testing.T) {
 func TestIconsOldAndUnknown(t *testing.T) {
 	for value, want := range map[string]bool{"true": true, "false": false, `"emoji"`: false} {
 		m := restartedWith(t, newTestModel(t, iconBookmarks()...), "icons = "+value)
-		if got := strings.Contains(m.View(), folderIcon+" NOTES"); got != want {
-			t.Errorf("icons = %s: Nerd Font icons %v, want %v:\n%s", value, got, want, plain(m.View()))
+		if got := strings.Contains(m.screen(), folderIcon+" NOTES"); got != want {
+			t.Errorf("icons = %s: Nerd Font icons %v, want %v:\n%s", value, got, want, plain(m.screen()))
 		}
 	}
 }

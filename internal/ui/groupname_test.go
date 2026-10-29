@@ -6,8 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
-
 	"github.com/turtlethom/pathpin/v2/internal/config"
 )
 
@@ -27,11 +25,11 @@ func pressN(m Model) Model {
 func TestRenameGroupOpensField(t *testing.T) {
 	m := schoolTab(t)
 	if help, _ := press(m, runes("?")); !helpShows(help, "N", "rename group") {
-		t.Errorf("the help page (?) should mention N:\n%s", plain(help.View()))
+		t.Errorf("the help page (?) should mention N:\n%s", plain(help.screen()))
 	}
 	m = pressN(m)
-	if m.mode == modeBrowse || !strings.Contains(plain(m.View()), "Rename group: School") {
-		t.Errorf("N should open the field with School in it:\n%s", plain(m.View()))
+	if m.mode == modeBrowse || !strings.Contains(plain(m.screen()), "Rename group: School") {
+		t.Errorf("N should open the field with School in it:\n%s", plain(m.screen()))
 	}
 }
 
@@ -43,8 +41,8 @@ func TestRenameGroupNeedsGroupTab(t *testing.T) {
 		"no groups": twoBookmarks(t),
 	} {
 		m = pressN(m)
-		if m.mode != modeBrowse || !strings.Contains(plain(m.View()), "Open a group's tab to rename it") {
-			t.Errorf("%s: want a note and no field:\n%s", name, plain(m.View()))
+		if m.mode != modeBrowse || !strings.Contains(plain(m.screen()), "Open a group's tab to rename it") {
+			t.Errorf("%s: want a note and no field:\n%s", name, plain(m.screen()))
 		}
 	}
 }
@@ -57,7 +55,7 @@ func TestRenameGroupSaves(t *testing.T) {
 		m, _ = press(clearField(m), runes(newName))
 		m = enter(m)
 		if m.mode != modeBrowse {
-			t.Fatalf("%s: enter should close the field:\n%s", newName, plain(m.View()))
+			t.Fatalf("%s: enter should close the field:\n%s", newName, plain(m.screen()))
 		}
 		for _, label := range []string{"CS310", "NOTES"} {
 			if got := groupOnDisk(t, m, label); got != newName {
@@ -73,8 +71,8 @@ func TestRenameGroupSaves(t *testing.T) {
 		if got := shown(m); !slices.Equal(got, []string{"CS310", "NOTES"}) {
 			t.Errorf("%s: rows %q", newName, got)
 		}
-		if !strings.Contains(plain(m.View()), "Renamed group School to "+newName) {
-			t.Errorf("%s: want a Renamed group status:\n%s", newName, plain(m.View()))
+		if !strings.Contains(plain(m.screen()), "Renamed group School to "+newName) {
+			t.Errorf("%s: want a Renamed group status:\n%s", newName, plain(m.screen()))
 		}
 	}
 }
@@ -85,8 +83,8 @@ func TestRenameGroupMerge(t *testing.T) {
 	m := pressN(schoolTab(t))
 	m, _ = press(clearField(m), runes("config"))
 	m = enter(m)
-	if m.mode != modeConfirm || !strings.Contains(plain(m.View()), "Merge School into Config? y/N") {
-		t.Fatalf("want the merge prompt:\n%s", plain(m.View()))
+	if m.mode != modeConfirm || !strings.Contains(plain(m.screen()), "Merge School into Config? y/N") {
+		t.Fatalf("want the merge prompt:\n%s", plain(m.screen()))
 	}
 	cancelled, _ := press(m, runes("n"))
 	if cancelled.mode != modeBrowse || groupOnDisk(t, cancelled, "CS310") != "School" {
@@ -108,8 +106,8 @@ func TestRenameGroupMerge(t *testing.T) {
 	if got := activeTab(t, m); got != "Config" {
 		t.Errorf("want the Config tab open after merging, got %s", got)
 	}
-	if !strings.Contains(plain(m.View()), "Merged School into Config") {
-		t.Errorf("want a Merged status:\n%s", plain(m.View()))
+	if !strings.Contains(plain(m.screen()), "Merged School into Config") {
+		t.Errorf("want a Merged status:\n%s", plain(m.screen()))
 	}
 }
 
@@ -119,17 +117,17 @@ func TestRenameGroupErrorsAndUnchanged(t *testing.T) {
 	m := pressN(schoolTab(t))
 	m, _ = press(clearField(m), runes("Other"))
 	m = enter(m)
-	if m.mode == modeBrowse || !strings.Contains(plain(m.View()), "tab names") {
-		t.Errorf("Other should be refused with the field open:\n%s", plain(m.View()))
+	if m.mode == modeBrowse || !strings.Contains(plain(m.screen()), "tab names") {
+		t.Errorf("Other should be refused with the field open:\n%s", plain(m.screen()))
 	}
-	m, _ = press(m, tea.KeyMsg{Type: tea.KeyEsc})
+	m, _ = press(m, keyMsg("esc"))
 	if m.mode != modeBrowse || groupOnDisk(t, m, "CS310") != "School" {
 		t.Error("esc should close the field without saving")
 	}
 
 	m = enter(pressN(schoolTab(t)))
 	if m.mode != modeBrowse {
-		t.Fatalf("enter should close the field:\n%s", plain(m.View()))
+		t.Fatalf("enter should close the field:\n%s", plain(m.screen()))
 	}
 	if _, err := os.Stat(m.configPath + ".bak"); err == nil {
 		t.Error("an unchanged name should not save (a backup was written)")
@@ -140,12 +138,12 @@ func TestRenameGroupErrorsAndUnchanged(t *testing.T) {
 // new-group field (m, then + new group…) never shows it, even right after N.
 func TestUngroupHint(t *testing.T) {
 	m := clearField(pressN(schoolTab(t)))
-	if !strings.Contains(plain(m.View()), "empty: ungroup all") {
-		t.Errorf("an empty N field should hint that it ungroups:\n%s", plain(m.View()))
+	if !strings.Contains(plain(m.screen()), "empty: ungroup all") {
+		t.Errorf("an empty N field should hint that it ungroups:\n%s", plain(m.screen()))
 	}
 	m = newGroup(t, esc(m))
-	if strings.Contains(plain(m.View()), "ungroup all") {
-		t.Errorf("the new-group field should open without N's hint:\n%s", plain(m.View()))
+	if strings.Contains(plain(m.screen()), "ungroup all") {
+		t.Errorf("the new-group field should open without N's hint:\n%s", plain(m.screen()))
 	}
 }
 
@@ -174,8 +172,8 @@ func TestUngroupPrompt(t *testing.T) {
 		m := pressN(tc.m)
 		m, _ = press(clearField(m), runes(tc.typed))
 		m = enter(m)
-		if m.mode != modeConfirm || !strings.Contains(plain(m.View()), tc.prompt) {
-			t.Errorf("%s: want the prompt %q:\n%s", name, tc.prompt, plain(m.View()))
+		if m.mode != modeConfirm || !strings.Contains(plain(m.screen()), tc.prompt) {
+			t.Errorf("%s: want the prompt %q:\n%s", name, tc.prompt, plain(m.screen()))
 			continue
 		}
 		m, _ = press(m, runes("n"))
@@ -199,7 +197,7 @@ func TestUngroupSaves(t *testing.T) {
 	m = enter(clearField(pressN(m)))
 	m, _ = press(m, runes("y"))
 	if m.mode != modeBrowse {
-		t.Fatalf("y should close the prompt:\n%s", plain(m.View()))
+		t.Fatalf("y should close the prompt:\n%s", plain(m.screen()))
 	}
 	var labels, groups []string
 	for _, b := range onDisk(t, m) {
@@ -220,8 +218,8 @@ func TestUngroupSaves(t *testing.T) {
 	if got := selected(m); got != "NOTES" {
 		t.Errorf("want the cursor still on NOTES, got %s", got)
 	}
-	if !strings.Contains(plain(m.View()), "Ungrouped 2 bookmarks from School") {
-		t.Errorf("want an Ungrouped status:\n%s", plain(m.View()))
+	if !strings.Contains(plain(m.screen()), "Ungrouped 2 bookmarks from School") {
+		t.Errorf("want an Ungrouped status:\n%s", plain(m.screen()))
 	}
 }
 
@@ -236,8 +234,8 @@ func TestUngroupLastGroup(t *testing.T) {
 	if got := shown(m); !slices.Equal(got, []string{"SOLO", "NOTES"}) {
 		t.Errorf("rows %q, want SOLO NOTES", got)
 	}
-	if !strings.Contains(plain(m.View()), "Ungrouped 1 bookmark from Solo") {
-		t.Errorf("want an Ungrouped status:\n%s", plain(m.View()))
+	if !strings.Contains(plain(m.screen()), "Ungrouped 1 bookmark from Solo") {
+		t.Errorf("want an Ungrouped status:\n%s", plain(m.screen()))
 	}
 }
 

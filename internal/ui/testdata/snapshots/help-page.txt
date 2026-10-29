@@ -1,0 +1,19 @@
+
+  «bg=#88c0d0| »«fg=#2e3440,bg=#88c0d0,bold|PATHPIN»«bg=#88c0d0| »
+
+  «fg=#d8dee9|Navigate»                   «fg=#d8dee9|Bookmarks»                  «fg=#d8dee9|Names»
+  «fg=#616e88|────────»                   «fg=#616e88|─────────»                  «fg=#616e88|─────»
+  «fg=#88c0d0|↑↓/jk»     «fg=#616e88|move»             «fg=#88c0d0|a»    «fg=#616e88|add»                   «fg=#88c0d0|n»  «fg=#616e88|rename»
+  «fg=#88c0d0|←→/hl»     «fg=#616e88|page»             «fg=#88c0d0|r»    «fg=#616e88|remove»                «fg=#88c0d0|N»  «fg=#616e88|rename group»
+  «fg=#88c0d0|g/G»       «fg=#616e88|top/end»          «fg=#88c0d0|c»    «fg=#616e88|clear all»
+  «fg=#88c0d0|tab/⇧tab»  «fg=#616e88|group»            «fg=#88c0d0|J/K»  «fg=#616e88|reorder»
+  «fg=#88c0d0|.»         «fg=#616e88|groups only»
+
+  «fg=#d8dee9|Groups»                     «fg=#d8dee9|Actions»                    «fg=#d8dee9|Menu»
+  «fg=#616e88|──────»                     «fg=#616e88|───────»                    «fg=#616e88|────»
+  «fg=#88c0d0|m»  «fg=#616e88|move to group»           «fg=#88c0d0|enter»  «fg=#616e88|cd»                  «fg=#88c0d0|/»  «fg=#616e88|filter»
+  «fg=#88c0d0|u»  «fg=#616e88|ungroup»                 «fg=#88c0d0|e»      «fg=#616e88|edit»                «fg=#88c0d0|t»  «fg=#616e88|appearance»
+                             «fg=#88c0d0|y»      «fg=#616e88|copy path»           «fg=#88c0d0|?»  «fg=#616e88|help»
+                             «fg=#88c0d0|o»      «fg=#616e88|open»                «fg=#88c0d0|q»  «fg=#616e88|quit»
+
+  «fg=#88c0d0|? esc q»«fg=#616e88| close»

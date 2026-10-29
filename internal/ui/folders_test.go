@@ -89,8 +89,8 @@ func nvimAndGone(t *testing.T) Model {
 // mount holds up only its own row.
 func TestFoldersCheckedInBackground(t *testing.T) {
 	m := nvimAndGone(t)
-	if rowFor(t, m, "GONE").missing || strings.Contains(plain(m.View()), "(missing)") {
-		t.Errorf("before its check, a row should show as present:\n%s", plain(m.View()))
+	if rowFor(t, m, "GONE").missing || strings.Contains(plain(m.screen()), "(missing)") {
+		t.Errorf("before its check, a row should show as present:\n%s", plain(m.screen()))
 	}
 	batch, ok := m.Init()().(tea.BatchMsg)
 	if !ok || len(batch) != 2 {
@@ -100,8 +100,8 @@ func TestFoldersCheckedInBackground(t *testing.T) {
 	if !rowFor(t, m, "GONE").missing || rowFor(t, m, "NVIM").missing {
 		t.Errorf("after the checks, only GONE should be missing: %+v", m.list.Items())
 	}
-	if !strings.Contains(plain(m.View()), "(missing)") {
-		t.Errorf("want GONE drawn as missing:\n%s", plain(m.View()))
+	if !strings.Contains(plain(m.screen()), "(missing)") {
+		t.Errorf("want GONE drawn as missing:\n%s", plain(m.screen()))
 	}
 }
 
@@ -125,7 +125,7 @@ func TestLateCheckCantUndoEnter(t *testing.T) {
 	if err := os.RemoveAll(rowFor(t, m, "NVIM").Path); err != nil {
 		t.Fatal(err)
 	}
-	m, _ = press(m, tea.KeyMsg{Type: tea.KeyEnter})
+	m, _ = press(m, keyMsg("enter"))
 	m = deliver(m, late...)
 	if !rowFor(t, m, "NVIM").missing {
 		t.Error("NVIM should stay missing after a late check")
@@ -152,7 +152,7 @@ func TestTabSwitchUsesKnownState(t *testing.T) {
 		t.Error("a tab switch shouldn't check folders again")
 	}
 	m = selectLabel(t, m, "LAB")
-	m, cmd := press(m, tea.KeyMsg{Type: tea.KeyEnter})
+	m, cmd := press(m, keyMsg("enter"))
 	if m.chosen != lab.Path || !isQuit(cmd) {
 		t.Errorf("enter should check again and cd to the folder that's back, chose %q", m.chosen)
 	}
@@ -165,7 +165,7 @@ func TestEnterRecordsGoneFolder(t *testing.T) {
 	if err := os.RemoveAll(rowFor(t, m, "BASH").Path); err != nil {
 		t.Fatal(err)
 	}
-	m, _ = press(m, tea.KeyMsg{Type: tea.KeyEnter})
+	m, _ = press(m, keyMsg("enter"))
 	if m.chosen != "" || !rowFor(t, m, "BASH").missing {
 		t.Fatalf("enter on a gone folder should mark it missing, chose %q", m.chosen)
 	}
@@ -205,8 +205,8 @@ func TestCheckResultWhileTyping(t *testing.T) {
 		t.Fatalf("while typing, the row should wait and the result come back later; missing %v, state %v",
 			rowFor(t, m, "GONE").missing, m.list.FilterState())
 	}
-	m, _ = press(m, tea.KeyMsg{Type: tea.KeyEnter}) // apply the filter
-	m = deliver(m, retry())                         // after the 100ms wait
+	m, _ = press(m, keyMsg("enter")) // apply the filter
+	m = deliver(m, retry())          // after the 100ms wait
 	if !rowFor(t, m, "GONE").missing {
 		t.Error("once typing ends, the result should dim the row")
 	}
