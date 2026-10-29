@@ -150,6 +150,21 @@ func TestRootMalformedConfigStopsBeforeMenu(t *testing.T) {
 	}
 }
 
+// config.DefaultPath ignores a relative XDG_CONFIG_HOME, and so does looking
+// for fcd's config (os.UserConfigDir refuses one), so commands still work.
+func TestRelativeXDGConfigHome(t *testing.T) {
+	e := newRootEnv(t)
+	e.withBookmarks(t, "NVIM", ".config/nvim")
+	t.Setenv("XDG_CONFIG_HOME", "relative/dir")
+	stdout, _, err := e.run(t, noMenu(t), "ls")
+	if err != nil {
+		t.Fatalf("a relative XDG_CONFIG_HOME should be ignored, got %v", err)
+	}
+	if !strings.HasPrefix(stdout, "NVIM\t") {
+		t.Errorf("want the bookmarks from ~/.config, got %q", stdout)
+	}
+}
+
 // noMenu fails the test if the menu opens.
 func noMenu(t *testing.T) menuFunc {
 	return func(*config.Config, string) (string, error) {

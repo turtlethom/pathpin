@@ -567,6 +567,24 @@ func TestLoadOrMigrate(t *testing.T) {
 		}
 	})
 
+	// "" is no fcd config at all (cmd passes it when fcd's path can't be
+	// worked out), so it's a fresh install too.
+	t.Run("no legacy path", func(t *testing.T) {
+		home := setupHome(t)
+		path := filepath.Join(home, ".config", "pathpin", "config.toml")
+
+		cfg, migrated, err := LoadOrMigrate(path, "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if migrated || cfg == nil || len(cfg.Bookmarks) != 0 {
+			t.Errorf("want empty config, got migrated=%v %+v", migrated, cfg)
+		}
+		if _, err := os.Stat(path); !errors.Is(err, os.ErrNotExist) {
+			t.Error("no legacy path should not create a config file")
+		}
+	})
+
 	// Saving it would leave a pathpin config that the next startup refuses.
 	t.Run("bad fcd config is not saved", func(t *testing.T) {
 		home := setupHome(t)

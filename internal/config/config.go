@@ -383,7 +383,8 @@ type fcdConfig struct {
 //   - If path exists, Load it (ignore legacyPath).
 //   - Otherwise, if legacyPath exists, MigrateFCD it, Save the result to path,
 //     and report migrated = true.
-//   - Otherwise, return an empty Config without creating any file.
+//   - Otherwise, return an empty Config without creating any file. An empty
+//     legacyPath means there's no fcd config to look for.
 //   - A migrated config that Load would reject is not saved; the error names
 //     legacyPath so the user knows which file to fix.
 func LoadOrMigrate(path, legacyPath string) (cfg *Config, migrated bool, err error) {
@@ -397,6 +398,9 @@ func LoadOrMigrate(path, legacyPath string) (cfg *Config, migrated bool, err err
 		return nil, false, err
 	}
 
+	if legacyPath == "" {
+		return &Config{}, false, nil // nothing to migrate
+	}
 	cfg, err = MigrateFCD(legacyPath)
 	if errors.Is(err, fs.ErrNotExist) {
 		return &Config{}, false, nil // fresh install
