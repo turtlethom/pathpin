@@ -59,7 +59,7 @@ func KnownSelection(s string) bool {
 const (
 	headerBadge   = "badge"   // a block of selected_text on primary
 	headerText    = "text"    // bold primary
-	headerBracket = "bracket" // [ PATHPIN ] and [All], the brackets muted
+	headerBracket = "bracket" // [PATHPIN] and [All], the brackets muted
 	headerRule    = "rule"    // bold primary; the title line ends in a muted rule, the open tab underlined
 )
 

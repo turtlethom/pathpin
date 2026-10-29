@@ -30,7 +30,9 @@
 //	styles.go   Styles: every lipgloss style, built from the config's colors
 //	themes.go   theme palettes, color checks, the picker's color list
 //	picker.go   t, the appearance picker (modeTheme, modeHex)
+//	groups.go   m, the group picker (modeGroupPick, modeGroup)
 //	hints.go    the key hints and help under the list
+//	help.go     ?, the full-screen help page (modeHelp)
 //	actions.go  e, y and o: editor, clipboard, file manager
 package ui
 
