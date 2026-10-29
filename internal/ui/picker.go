@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -28,18 +29,24 @@ type pickerRow struct {
 	set     func(*config.Config, string)
 	color   bool // # types a color
 	rebuild bool // a change rebuilds the list's rows (icons are part of each row)
+
+	// themeColor is the theme's color for a color row, shown as the
+	// default's swatch (nil on the other rows).
+	themeColor func(palette) lipgloss.TerminalColor
 }
 
 // appearanceRows is the picker's table, top to bottom. It's built fresh on
 // each call (cheap), so there's no package-level state.
 func appearanceRows() []pickerRow {
 	// color builds the five color rows. field points get and set at one
-	// [colors] field (its address, &c.Primary), so each row is one line.
-	color := func(key, hint string, field func(*config.Colors) *string) pickerRow {
+	// [colors] field (its address, &c.Primary), and slot picks the theme's
+	// color that field overrides.
+	color := func(key, hint string, field func(*config.Colors) *string, slot func(palette) lipgloss.TerminalColor) pickerRow {
 		return pickerRow{
 			key: key, hint: hint, def: "theme's", values: colorValues, color: true,
-			get: func(c *config.Config) string { return *field(&c.Colors) },
-			set: func(c *config.Config, v string) { *field(&c.Colors) = v },
+			get:        func(c *config.Config) string { return *field(&c.Colors) },
+			set:        func(c *config.Config, v string) { *field(&c.Colors) = v },
+			themeColor: slot,
 		}
 	}
 	return []pickerRow{
@@ -48,11 +55,21 @@ func appearanceRows() []pickerRow {
 			get: func(c *config.Config) string { return c.Colors.Theme },
 			set: func(c *config.Config, v string) { c.Colors.Theme = v },
 		},
-		color("primary", "title, selected row", func(c *config.Colors) *string { return &c.Primary }),
-		color("secondary", "labels", func(c *config.Colors) *string { return &c.Secondary }),
-		color("tertiary", "paths", func(c *config.Colors) *string { return &c.Tertiary }),
-		color("selected_text", "text on primary", func(c *config.Colors) *string { return &c.SelectedText }),
-		color("error", "errors", func(c *config.Colors) *string { return &c.Error }),
+		color("primary", "title, selected row",
+			func(c *config.Colors) *string { return &c.Primary },
+			func(p palette) lipgloss.TerminalColor { return p.accent }),
+		color("secondary", "labels",
+			func(c *config.Colors) *string { return &c.Secondary },
+			func(p palette) lipgloss.TerminalColor { return p.text }),
+		color("tertiary", "paths",
+			func(c *config.Colors) *string { return &c.Tertiary },
+			func(p palette) lipgloss.TerminalColor { return p.muted }),
+		color("selected_text", "text on primary",
+			func(c *config.Colors) *string { return &c.SelectedText },
+			func(p palette) lipgloss.TerminalColor { return p.onAccent }),
+		color("error", "errors",
+			func(c *config.Colors) *string { return &c.Error },
+			func(p palette) lipgloss.TerminalColor { return p.err }),
 		{
 			key: "selection", hint: "block, bar or arrow", def: selectBlock,
 			values: func() []string { return []string{"", selectBar, selectArrow} },
@@ -317,7 +334,13 @@ func (m Model) pickerView() string {
 		}
 		value := arrowL + m.pickerValue(i) + arrowR
 		value += strings.Repeat(" ", max(0, 30-lipgloss.Width(value)))
-		lines = append(lines, marker+key+value+m.styles.muted.Render(row.hint))
+		hint := row.hint
+		if row.color && paletteColor(row.get(&m.draft)) {
+			// The name is the palette slot's (bright-blue), and the swatch
+			// may not match it, so say why.
+			hint = "your terminal's palette"
+		}
+		lines = append(lines, marker+key+value+m.styles.muted.Render(hint))
 	}
 	if top, w, scrolls := m.themeWindow(len(lines)); scrolls {
 		shown := append([]string{m.moreLine("↑", top, 2)}, lines[top:top+w]...)
@@ -333,9 +356,18 @@ func (m Model) pickerValue(i int) string {
 	text := m.styles.note.UnsetPadding()
 	row := appearanceRows()[i]
 	value := row.canon(row.get(&m.draft))
+	theme, _ := lookupTheme(m.draft.Colors.Theme) // an unknown theme draws as terminal
+	swatch := func(c lipgloss.TerminalColor) string {
+		if row.key == "selected_text" {
+			// A text color alone says little (the terminal theme's 0 is often
+			// the background itself), so show it on the accent, as in the badge.
+			return lipgloss.NewStyle().Foreground(c).Background(pick(m.draft.Colors.Primary, theme.accent)).Render("Aa")
+		}
+		return lipgloss.NewStyle().Foreground(c).Render("██")
+	}
 	switch {
 	case value == "" && row.color:
-		return m.styles.muted.Render(row.def)
+		return swatch(row.themeColor(theme)) + m.styles.muted.Render(" "+row.def)
 	case value == "":
 		return text.Render(row.def)
 	case row.color && !validColor(value):
@@ -346,11 +378,16 @@ func (m Model) pickerValue(i int) string {
 		}
 		return text.Render(value + " (unknown)")
 	}
-	swatch := lipgloss.NewStyle().Foreground(lipgloss.Color(value)).Render("██")
 	for _, c := range colorChoices() {
 		if strings.EqualFold(c.value, value) {
-			return swatch + text.Render(" "+c.name+" · "+c.value)
+			return swatch(lipgloss.Color(value)) + text.Render(" "+c.name+" · "+c.value)
 		}
 	}
-	return swatch + text.Render(" "+value)
+	return swatch(lipgloss.Color(value)) + text.Render(" "+value)
+}
+
+// paletteColor reports whether value is one of the 16 terminal colors the
+// picker names (0-15), whose look the terminal's palette decides.
+func paletteColor(value string) bool {
+	return slices.ContainsFunc(colorChoices()[:16], func(c namedColor) bool { return c.value == value })
 }

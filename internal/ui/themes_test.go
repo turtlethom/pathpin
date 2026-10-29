@@ -36,12 +36,14 @@ func TestThemeNames(t *testing.T) {
 }
 
 // terminal uses the terminal's own palette, so it follows the terminal's theme.
+// The text on the accent is 0 (black), which is dark in nearly every palette:
+// 15 on 6 is under 4.5:1 in 355 of ghostty's 368 themes, 0 on 6 in 106.
 func TestTerminalTheme(t *testing.T) {
 	for _, c := range []config.Colors{{}, {Theme: "terminal"}, {Theme: "Terminal"}} {
 		got := colorsOf(NewStyles(c, config.Menu{}))
 		want := themeColors{
 			accent:   lipgloss.Color("6"),
-			onAccent: lipgloss.Color("15"),
+			onAccent: lipgloss.Color("0"),
 			text:     lipgloss.NoColor{},
 			muted:    lipgloss.Color("8"),
 			err:      lipgloss.Color("1"),
