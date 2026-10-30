@@ -316,7 +316,9 @@ header = "text"
   `$HOME`, then checks that a new shell, started as a terminal would
   (`bash -i`, `bash -l -i` for the macOS section, `zsh -i`, `fish`), can jump;
   also with the `--cmd pp` line and `EDITOR`, and that the README's blocks
-  match.
+  match. Its `install` job runs `shellcheck install.sh` and
+  `install_test.sh`, which installs the published releases with this
+  checkout's `install.sh` (so it needs the network).
 
 ## Versions and releases
 
@@ -343,6 +345,15 @@ header = "text"
   `docs/install.md`'s `releases/latest/download/...` lines always get the newest
   published release; GitHub's "latest" never points at a pre-release
   (`v2.1.0-rc.1`, marked as one by `prerelease: auto`) or a draft.
+- **`install.sh`** (POSIX `sh`, at the root) is a release asset
+  (`release.extra_files`), so `releases/latest/download/install.sh` is the
+  script that was tested with that release. It looks up the version
+  `releases/latest` redirects to, then downloads the archive and
+  `checksums.txt` from that tag, so a release published meanwhile can't mix
+  them. It installs only after the checksum passes, renames a new file over the
+  old one (an open menu keeps running), and never edits shell config files: a
+  first install prints the setup commands for `$SHELL` instead. Its spec is
+  `install_test.sh` (`./install_test.sh [test_name...]`).
 - **Trying it locally:** `goreleaser check`, and
   `goreleaser release --snapshot --clean` to build into `dist/` without
   publishing. Use the version pinned in `release.yml`
