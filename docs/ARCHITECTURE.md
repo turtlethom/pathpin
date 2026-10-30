@@ -335,7 +335,7 @@ header = "text"
   release with the feat/fix commits since the previous tag. Edit the notes only
   after the final tag push (re-pushing a tag replaces the draft and its notes,
   `replace_existing_draft`), then publish. Archive names have no version, so the
-  README's `releases/latest/download/...` install lines always get the newest
+  `docs/install.md`'s `releases/latest/download/...` lines always get the newest
   published release; GitHub's "latest" never points at a pre-release
   (`v2.1.0-rc.1`, marked as one by `prerelease: auto`) or a draft.
 - **Trying it locally:** `goreleaser check`, and
