@@ -392,6 +392,20 @@ fi'
 	expect_files "$bin"
 }
 
+test_either_checksum_tool() {
+	# sha256sum alone on Linux only: every Mac has shasum, which comes first,
+	# and macOS's own sha256sum isn't GNU's.
+	if [ "$(uname -s)" = Linux ]; then
+		run_install "PATH=$(without shasum)"
+		expect_status 0
+		expect_version "$bin" "$latest"
+		rm -rf "$home/.local" "$t/path"
+	fi
+	run_install "PATH=$(without sha256sum)"
+	expect_status 0
+	expect_version "$bin" "$latest"
+}
+
 test_no_checksum_tool() {
 	run_install "PATH=$(without sha256sum shasum)"
 	expect_status error
