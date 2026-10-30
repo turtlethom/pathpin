@@ -94,12 +94,14 @@ esac
 
 command -v curl >/dev/null 2>&1 || die "curl is needed to download pathpin"
 
-# The download is installed only if its checksum matches, so no tool means
-# no install, never an unchecked one.
-if command -v sha256sum >/dev/null 2>&1; then
-	check() { sha256sum -c "$@"; }
-elif command -v shasum >/dev/null 2>&1; then
-	check() { shasum -a 256 -c "$@"; }
+# sha256 FILE prints FILE's SHA-256; the script compares it with
+# checksums.txt itself, since -c differs between tools (on macOS, sha256sum -c
+# failed every check in CI). shasum first: macOS always has it. The download is installed only if its checksum matches, so no tool
+# means no install, never an unchecked one.
+if command -v shasum >/dev/null 2>&1; then
+	sha256() { shasum -a 256 "$1" | cut -d ' ' -f 1; }
+elif command -v sha256sum >/dev/null 2>&1; then
+	sha256() { sha256sum "$1" | cut -d ' ' -f 1; }
 else
 	die "can't check the download: neither sha256sum nor shasum is installed"
 fi
@@ -157,7 +159,9 @@ curl -fsSL -o "$tmp/checksums.txt" "$base/checksums.txt" ||
 	die "can't download $base/checksums.txt"
 
 # Both files come from the same tag, so a release published meanwhile can't mix them.
-(cd "$tmp" && grep "  $archive\$" checksums.txt | check >/dev/null 2>&1) ||
+want=$(awk -v f="$archive" '$2 == f { print $1 }' "$tmp/checksums.txt")
+[ -n "$want" ] || die "checksums.txt has no line for $archive, so nothing was installed"
+[ "$(sha256 "$tmp/$archive")" = "$want" ] ||
 	die "checksum mismatch: $archive is damaged or was changed, so nothing was installed"
 say "checksum OK"
 
