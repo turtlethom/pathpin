@@ -311,7 +311,12 @@ header = "text"
   output.
 - **CI** (`.github/workflows/ci.yml`) runs `gofmt`, `go vet`, `go build` and
   `go test -race` on Linux and macOS, with zsh and fish installed for the
-  shell tests.
+  shell tests, and `docs_test.sh`, which pastes each per-shell section of
+  `docs/install.md` (read from the file) into that shell with a throwaway
+  `$HOME`, then checks that a new shell, started as a terminal would
+  (`bash -i`, `bash -l -i` for the macOS section, `zsh -i`, `fish`), can jump;
+  also with the `--cmd pp` line and `EDITOR`, and that the README's blocks
+  match.
 
 ## Versions and releases
 
