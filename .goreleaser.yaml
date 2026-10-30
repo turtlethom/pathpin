@@ -23,7 +23,7 @@ builds:
 archives:
   - formats: [tar.gz]
     # No version in the name, so releases/latest/download/pathpin_linux_amd64.tar.gz
-    # always gets the newest release (the README's install lines use it).
+    # always gets the newest release (docs/install.md's download lines use it).
     name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
     files:
       - README.md

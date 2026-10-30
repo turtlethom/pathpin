@@ -311,7 +311,12 @@ header = "text"
   output.
 - **CI** (`.github/workflows/ci.yml`) runs `gofmt`, `go vet`, `go build` and
   `go test -race` on Linux and macOS, with zsh and fish installed for the
-  shell tests.
+  shell tests, and `docs_test.sh`, which pastes each per-shell section of
+  `docs/install.md` (read from the file) into that shell with a throwaway
+  `$HOME`, then checks that a new shell, started as a terminal would
+  (`bash -i`, `bash -l -i` for the macOS section, `zsh -i`, `fish`), can jump;
+  also with the `--cmd pp` line and `EDITOR`, and that the README's blocks
+  match.
 
 ## Versions and releases
 
@@ -335,7 +340,7 @@ header = "text"
   release with the feat/fix commits since the previous tag. Edit the notes only
   after the final tag push (re-pushing a tag replaces the draft and its notes,
   `replace_existing_draft`), then publish. Archive names have no version, so the
-  README's `releases/latest/download/...` install lines always get the newest
+  `docs/install.md`'s `releases/latest/download/...` lines always get the newest
   published release; GitHub's "latest" never points at a pre-release
   (`v2.1.0-rc.1`, marked as one by `prerelease: auto`) or a draft.
 - **Trying it locally:** `goreleaser check`, and

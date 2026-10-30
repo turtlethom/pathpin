@@ -42,3 +42,8 @@ jobs:
 
       - name: test
         run: go test -race ./...
+
+      # Pastes docs/install.md's setup commands into bash, zsh and fish, then
+      # checks a new shell can jump. CI=true makes a missing shell a failure.
+      - name: shell setup in the docs
+        run: ./docs_test.sh
