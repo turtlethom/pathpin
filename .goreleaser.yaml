@@ -58,3 +58,7 @@ release:
   draft: true
   replace_existing_draft: true # re-pushing a tag after a fix replaces its draft
   prerelease: auto # v2.1.0-rc.1 and the like are marked as pre-releases
+  # The install script ships with each release, so releases/latest/download/install.sh
+  # is always the one tested with that release (ci.yml's install job).
+  extra_files:
+    - glob: ./install.sh
