@@ -47,3 +47,21 @@ jobs:
       # checks a new shell can jump. CI=true makes a missing shell a failure.
       - name: shell setup in the docs
         run: ./docs_test.sh
+
+  # install.sh against the published releases (install_test.sh needs the
+  # network), on both systems: sh is dash on Ubuntu and bash 3.2 on macOS.
+  install:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: shellcheck
+        if: runner.os == 'Linux' # preinstalled on GitHub's Ubuntu runners
+        run: shellcheck install.sh
+
+      - name: install.sh
+        run: ./install_test.sh

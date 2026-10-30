@@ -20,7 +20,21 @@ curl -fsSL https://github.com/turtlethom/pathpin/releases/latest/download/instal
 ```
 
 The script picks the build for your system, checks it against the release's `checksums.txt`, and
-puts `pathpin` in `~/.local/bin`. Run the same line again to update.
+puts `pathpin` in `~/.local/bin`. Run the same line again to update. It never edits your shell's
+config: on a first install, it prints the commands from [Set up your shell](#set-up-your-shell)
+for the shell you use.
+
+Options go after `sh -s --`:
+
+```bash
+# install somewhere else than ~/.local/bin
+curl -fsSL https://github.com/turtlethom/pathpin/releases/latest/download/install.sh | sh -s -- --bin-dir ~/bin
+# install a specific release, for example to go back to an older one
+curl -fsSL https://github.com/turtlethom/pathpin/releases/latest/download/install.sh | sh -s -- --version 2.0.1
+```
+
+The script never runs `sudo` itself. For a folder only root can write to, like `/usr/local/bin`,
+run it as `… | sudo sh -s -- --bin-dir /usr/local/bin`.
 
 To read the script before running it:
 
@@ -247,7 +261,7 @@ Update the same way you installed:
 
 | Installed with | To update |
 |---|---|
-| the install script | run the install line again |
+| the install script | run the install line again (with the same `--bin-dir`, if you gave one) |
 | Go | run `go install github.com/turtlethom/pathpin/v2@latest` again |
 | a download by hand | run your system's commands again |
 | source | `git pull`, then `go build -o ~/.local/bin/pathpin .` again |
@@ -266,5 +280,5 @@ The first time you run pathpin, it imports your fcd bookmarks and leaves fcd's f
    `~/.zshrc` or `~/.config/fish/config.fish`): the `pathpin init` line, and the `PATH` and
    `EDITOR` lines if nothing else needs them. In fish, `set -Ue EDITOR` removes the editor.
 2. Delete the binary: `rm ~/.local/bin/pathpin` (or `rm ~/go/bin/pathpin` if you installed with
-   Go).
+   Go, or from the folder you gave `--bin-dir`).
 3. To drop your bookmarks too, delete `~/.config/pathpin/` (or `$XDG_CONFIG_HOME/pathpin/`).
